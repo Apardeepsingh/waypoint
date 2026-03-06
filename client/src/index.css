@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --color-primary: #2d7a4f;
+  --color-primary-light: #4aab74;
+  --color-eco-bg: #e8f5ee;
+  --color-background: #f8faf8;
+  --color-text-dark: #1a2e1a;
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Playfair Display', serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-background);
+  color: #1f2937;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Range input styling */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #2d7a4f;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(45,122,79,0.35);
+}
+input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #2d7a4f;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(45,122,79,0.35);
+}
