@@ -21,6 +21,9 @@ const EMPTY = {
   savedActivities:   [],
   aiAnalysis:        null,
   aiItinerary:       null,
+  /* Cached carbon analysis — stored with a _fp fingerprint so it
+     auto-invalidates when the booked trip changes. */
+  carbonAnalysis:    null,
 };
 
 /* ── Storage helpers ── */
@@ -88,9 +91,23 @@ export function TripProvider({ children }) {
     setTrip((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  /* Set the chosen transport option */
+  /* Start a completely fresh trip from a new home-page search.
+     Resets ALL user-specific data (activities, transport, AI caches)
+     so every page reflects only the new trip. */
+  const startNewTrip = useCallback((searchData) => {
+    setTrip({ ...EMPTY, ...searchData });
+  }, []);
+
+  /* Set the chosen transport option — also clears any previously cached
+     AI results so My Trip shows fresh data for the new booking. */
   const selectTransport = useCallback((option) => {
-    setTrip((prev) => ({ ...prev, selectedTransport: option }));
+    setTrip((prev) => ({
+      ...prev,
+      selectedTransport: option,
+      aiItinerary:       null,
+      carbonAnalysis:    null,
+      savedActivities:   [],   // fresh activity list for the new trip
+    }));
   }, []);
 
   /* Toggle an activity in/out of the saved list */
@@ -113,6 +130,11 @@ export function TripProvider({ children }) {
     setTrip((prev) => ({ ...prev, aiItinerary: itinerary }));
   }, []);
 
+  /* Save carbon-analysis result (includes _fp fingerprint for cache validation) */
+  const setCarbonAnalysis = useCallback((analysis) => {
+    setTrip((prev) => ({ ...prev, carbonAnalysis: analysis }));
+  }, []);
+
   /* Reload trip data for a specific user (called on login) */
   const reloadForUser = useCallback(() => {
     setTrip(loadFromStorage());
@@ -128,10 +150,12 @@ export function TripProvider({ children }) {
     <TripContext.Provider value={{
       trip,
       updateTrip,
+      startNewTrip,
       selectTransport,
       toggleActivity,
       setAiAnalysis,
       setAiItinerary,
+      setCarbonAnalysis,
       reloadForUser,
       clearTrip,
     }}>

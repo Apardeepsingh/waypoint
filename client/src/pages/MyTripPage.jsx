@@ -1,93 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Train, TreePine, Leaf, Download, Share2,
   CheckCircle2, MapPin, Users, Calendar,
-  DollarSign, Wind, TrendingDown, Award,
-  Loader2, Sparkles, Bus, Car, Plane,
+  PoundSterling, Wind, TrendingDown, Award,
+  Bus, Car, Plane,
 } from "lucide-react";
 import { useTrip } from "../context/TripContext";
-import { generateItinerary } from "../services/openRouter";
 
 /* ─────────────────────────────────────────
    DATA
 ───────────────────────────────────────── */
-const ITINERARY = [
-  {
-    day: "Day 1", date: "Mon, 10 Mar",
-    items: [
-      { time: "08:00", label: "Eurostar – London St Pancras → Paris Gare du Nord", detail: "3h 34m · £89/person",       Icon: Train,         eco: true },
-      { time: "12:00", label: "Check in – Le Marais Eco Hotel",                    detail: "Green certified accommodation · £85/night", Icon: MapPin, eco: true },
-      { time: "14:00", label: "Louvre Museum Tour",                                detail: "3–4 hours · £17/person",                    Icon: CheckCircle2,  eco: true },
-      { time: "19:00", label: "Local Farmers' Market Evening",                     detail: "2 hours · £12/person",                      Icon: CheckCircle2,  eco: true },
-    ],
-  },
-  {
-    day: "Day 2", date: "Tue, 11 Mar",
-    items: [
-      { time: "09:00", label: "City Cycling Tour",                    detail: "3 hours · £28/person",     Icon: CheckCircle2, eco: true },
-      { time: "13:00", label: "Lunch at Vegan Bistro, Montmartre",    detail: "Plant-based · ~£18/person", Icon: CheckCircle2, eco: true },
-      { time: "15:30", label: "Seine River Kayak Adventure",          detail: "3 hours · £45/person",     Icon: CheckCircle2, eco: true },
-    ],
-  },
-  {
-    day: "Day 3", date: "Wed, 12 Mar",
-    items: [
-      { time: "09:30", label: "Forest Hiking in Fontainebleau", detail: "Full day · Free entry",     Icon: TreePine, eco: true },
-      { time: "18:00", label: "Return to Paris",                detail: "Regional train · ~£12",     Icon: Train,    eco: true },
-    ],
-  },
-];
-
-const COST_BREAKDOWN = [
-  { name: "Transport",      value: 178, color: "#4aab74",  icon: "🚄" },
-  { name: "Activities",     value: 102, color: "#2d7a4f",  icon: "🎭" },
-  { name: "Accommodation",  value: 255, color: "#86efac",  icon: "🏨" },
-  { name: "Food & Dining",  value: 108, color: "#a7f3d0",  icon: "🍽️" },
-  { name: "Misc & Buffer",  value:  57, color: "#d1fae5",  icon: "✨" },
-];
-
-const DAILY_BUDGET = [
-  { day: "Day 1", cost: 198 },
-  { day: "Day 2", cost: 91 },
-  { day: "Day 3", cost: 60 },
-  { day: "Day 4–7", cost: 175 },
-];
-
-const CARBON_BARS = [
-  { label: "Your Trip",          value: 12.4, max: 100, color: "#4aab74", badge: "You",    badgeColor: "#4aab74" },
-  { label: "Average Trip",       value: 97.2, max: 100, color: "#f87171", badge: "Avg",    badgeColor: "#f87171" },
-  { label: "Eco Target (2030)",  value: 20,   max: 100, color: "#fbbf24", badge: "Target", badgeColor: "#fbbf24" },
-];
-
-const CARBON_CATEGORIES = [
-  { label: "Transport",     value: 4.2, icon: "🚄", pct: 34, color: "#4aab74" },
-  { label: "Activities",    value: 1.4, icon: "🎭", pct: 11, color: "#86efac" },
-  { label: "Food & Dining", value: 3.8, icon: "🍽️", pct: 31, color: "#fbbf24" },
-  { label: "Accommodation", value: 3.0, icon: "🏨", pct: 24, color: "#a7f3d0" },
-];
-
 const CARBON_OFFSETS = [
   { label: "Plant 1 tree through Ecosia",         cost: 5,  co2: 22, icon: "🌳" },
   { label: "Fund solar panels in rural India",     cost: 12, co2: 50, icon: "☀️" },
   { label: "Support Amazonian rainforest",         cost: 8,  co2: 35, icon: "🌿" },
 ];
-
-const ECO_TIPS = [
-  "Carry a reusable water bottle and coffee cup",
-  "Use public transport or cycling in Paris",
-  "Choose local, seasonal food at restaurants",
-  "Opt out of daily hotel towel washing",
-  "Purchase carbon offsets for your flight",
-];
-
-const ECO_SCORES = [
-  { label: "Transport",     score: 96 },
-  { label: "Activities",    score: 98 },
-  { label: "Accommodation", score: 88 },
-];
-
-const totalCost = COST_BREAKDOWN.reduce((s, c) => s + c.value, 0);
 
 /* ─────────────────────────────────────────
    MINI DONUT CHART (SVG, no recharts)
@@ -163,42 +91,8 @@ function MiniBarChart({ data }) {
 const TRANSPORT_ICONS = { train: Train, bus: Bus, car: Car, flight: Plane };
 
 export function MyTripPage() {
-  const navigate   = useNavigate();
-  const { trip, setAiItinerary } = useTrip();
-
-  /* ── AI itinerary state ── */
-  const [itinerary,   setItinerary]   = useState(trip.aiItinerary ?? null);
-  const [itinLoading, setItinLoading] = useState(false);
-  const [itinError,   setItinError]   = useState("");
-
-  /* Generate itinerary if not already cached */
-  useEffect(() => {
-    if (itinerary) return;                      // already have one
-    if (!trip.from && !trip.to) return;         // no route yet
-    setItinLoading(true);
-    generateItinerary({
-      from:              trip.from,
-      to:                trip.to,
-      departure:         trip.departure,
-      returnDate:        trip.returnDate,
-      travelers:         trip.travelers,
-      selectedTransport: trip.selectedTransport,
-      savedActivities:   trip.savedActivities,
-      budget:            trip.budget,
-    })
-      .then((result) => {
-        setItinerary(result);
-        setAiItinerary(result);
-      })
-      .catch((err) => {
-        if (err.message === "OPENAI_KEY_MISSING") {
-          setItinError("key_missing");
-        } else {
-          setItinError(err.message);
-        }
-      })
-      .finally(() => setItinLoading(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const navigate = useNavigate();
+  const { trip } = useTrip();
 
   /* ── All dynamic values derived from TripContext ── */
   const from      = trip.from || "";
@@ -211,13 +105,13 @@ export function MyTripPage() {
   const activities= trip.savedActivities ?? [];
   const hasTrip   = !!(from && to && transport);
 
-  /* Calculate nights */
+  /* Calculate nights — default to 1 when no return date is set */
   const nights = (() => {
     if (departure && returnDate) {
       const d = Math.round((new Date(returnDate) - new Date(departure)) / 86400000);
-      return d > 0 ? d : 3;
+      return d > 0 ? d : 1;
     }
-    return 3;
+    return 1;
   })();
 
   /* Date display */
@@ -300,68 +194,52 @@ export function MyTripPage() {
     { label: "Accommodation", value: +(totalCO2 * 0.15).toFixed(1), icon: "🏨", pct: 15, color: "#a7f3d0" },
   ];
 
-  /* Build 3 fixed days from only what the user actually selected.
-     Day 1 gets the transport + check-in; all days get a slice of
-     the user's chosen activities. Nothing fake is ever injected. */
-  const buildDynamicDays = () => {
-    const NUM_DAYS  = 3;
-    const actsPerDay = Math.max(1, Math.ceil(activities.length / NUM_DAYS));
-    return Array.from({ length: NUM_DAYS }, (_, i) => {
-      const dayActs = activities.slice(i * actsPerDay, (i + 1) * actsPerDay);
-      const dayDate = departure
-        ? fmtDate(new Date(new Date(departure).getTime() + i * 86400000))
-        : `Day ${i + 1}`;
+  /* Build days from only what the user actually selected.
+     Number of days = actual trip nights (1 by default).
+     Day 1 gets the transport item; activities are spread across days.
+     Nothing is ever injected — if a day is empty the card says so. */
+  const NUM_DAYS   = Math.max(1, nights);
+  const actsPerDay = activities.length > 0 ? Math.max(1, Math.ceil(activities.length / NUM_DAYS)) : 0;
 
-      const items = [];
+  const displayDays = Array.from({ length: NUM_DAYS }, (_, i) => {
+    const dayActs = actsPerDay > 0
+      ? activities.slice(i * actsPerDay, (i + 1) * actsPerDay)
+      : [];
+    const dayDate = departure
+      ? fmtDate(new Date(new Date(departure).getTime() + i * 86400000))
+      : `Day ${i + 1}`;
 
-      if (i === 0 && transport) {
-        const TIcon = TRANSPORT_ICONS[transport.type] ?? CheckCircle2;
-        items.push({
-          time:   transport.departure ?? "08:00",
-          label:  `${transport.company ?? ""} – ${from} → ${to}`,
-          detail: `${transport.duration ?? ""} · £${transport.price}/person`,
-          Icon:   TIcon,
-          eco:    (transport.ecoScore ?? 50) >= 60,
-        });
-        items.push({
-          time:   "13:00",
-          label:  `Check in – Eco Accommodation, ${to}`,
-          detail: `Green certified · £${Math.round(accommodationCost / Math.max(nights, 1))}/night`,
-          Icon:   MapPin,
-          eco:    true,
-        });
-      }
+    const items = [];
 
-      dayActs.forEach((a, j) => {
-        const times = ["10:00", "14:00", "17:00"];
-        items.push({
-          time:   i === 0 ? ["15:00", "17:30"][j] ?? "15:00" : times[j] ?? "10:00",
-          label:  a.title,
-          detail: `${a.duration ?? "2–3 hours"} · ${a.price === 0 ? "Free" : `£${a.price}/person`}`,
-          Icon:   CheckCircle2,
-          eco:    true,
-          actId:  a.id,
-        });
+    /* Day 1 always starts with the booked transport */
+    if (i === 0 && transport) {
+      const TIcon = TRANSPORT_ICONS[transport.type] ?? CheckCircle2;
+      items.push({
+        time:   transport.departure ?? "08:00",
+        label:  `${transport.company ?? transport.title ?? "Transport"} – ${from} → ${to}`,
+        detail: `${transport.duration ?? ""} · £${transport.price}/person`,
+        Icon:   TIcon,
+        eco:    (transport.ecoScore ?? 50) >= 60,
       });
+    }
 
-      return { day: `Day ${i + 1}`, date: dayDate, items, hasActivities: dayActs.length > 0 };
+    /* Spread selected activities across the day's slots */
+    dayActs.forEach((a, j) => {
+      const slotTimes = i === 0
+        ? ["14:00", "16:30", "19:00"]
+        : ["09:30", "13:00", "16:00"];
+      items.push({
+        time:   slotTimes[j] ?? "10:00",
+        label:  a.title,
+        detail: `${a.duration ?? "2–3 hours"} · ${a.price === 0 ? "Free" : `£${a.price}/person`}`,
+        Icon:   CheckCircle2,
+        eco:    true,
+        actId:  a.id,
+      });
     });
-  };
 
-  const displayDays = itinerary?.days?.length
-    ? itinerary.days.map((d) => ({
-        day:           d.day,
-        date:          d.date_label ?? d.date ?? "",
-        hasActivities: true,
-        items: d.items.map((item) => ({
-          time:   item.time,
-          label:  item.label,
-          detail: item.detail,
-          Icon:   TRANSPORT_ICONS[item.type] ?? CheckCircle2,
-          eco:    item.eco !== false,
-        })),
-      }))
-    : buildDynamicDays();
+    return { day: `Day ${i + 1}`, date: dayDate, items, hasActivities: dayActs.length > 0 };
+  });
 
   const [activeTab,       setActiveTab]       = useState("itinerary");
   const [selectedOffset,  setSelectedOffset]  = useState(null);
@@ -432,7 +310,7 @@ export function MyTripPage() {
           {/* Right — 3 stat cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "0.875rem", flexShrink: 0 }}>
             {[
-              { label: "Total Cost",    value: `£${totalCostDisplay.toLocaleString()}`, sub: `${travelers} people`, Icon: DollarSign },
+              { label: "Total Cost",    value: `£${totalCostDisplay.toLocaleString()}`, sub: `${travelers} people`, Icon: PoundSterling },
               { label: "CO₂ Emissions", value: `${carbonDisplay} kg`,                  sub: `vs ${AVG_TRIP_CO2} kg avg`, Icon: Wind },
               { label: "Eco Score",     value: ecoGrade,                               sub: ecoScore >= 75 ? "Excellent rating" : "Good rating", Icon: Leaf },
             ].map(({ label, value, sub, Icon }) => (
@@ -536,25 +414,14 @@ export function MyTripPage() {
 
             {/* Left — day cards */}
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              {/* AI loading / source badge */}
-              {itinLoading && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.875rem 1.25rem", borderRadius: "1rem", background: "#e8f5ee", border: "1px solid #bbf7d0" }}>
-                  <Loader2 style={{ width: "1rem", height: "1rem", color: "#2d7a4f", animation: "spin 1s linear infinite" }} />
-                  <span style={{ fontSize: "0.875rem", color: "#166534", fontWeight: 600, fontFamily: "'Inter',sans-serif" }}>OpenAI is building your personalised itinerary…</span>
-                  <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                </div>
-              )}
-              {itinerary && !itinLoading && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 0.875rem", borderRadius: "9999px", background: "#e8f5ee", border: "1px solid #bbf7d0", width: "fit-content" }}>
-                  <Sparkles style={{ width: "0.8rem", height: "0.8rem", color: "#2d7a4f" }} />
-                  <span style={{ fontSize: "0.72rem", color: "#166534", fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>AI-generated itinerary · GPT-4o mini</span>
-                </div>
-              )}
-              {itinError === "key_missing" && (
-                <div style={{ padding: "0.75rem 1rem", borderRadius: "0.875rem", background: "#fff7ed", border: "1px solid #fed7aa", fontSize: "0.8rem", color: "#92400e", fontFamily: "'Inter',sans-serif" }}>
-                  ⚠️ Add <code>VITE_OPENAI_API_KEY</code> to enable AI itinerary. Showing sample plan.
-                </div>
-              )}
+              {/* Source badge */}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 0.875rem", borderRadius: "9999px", background: "#e8f5ee", border: "1px solid #bbf7d0", width: "fit-content" }}>
+                <CheckCircle2 style={{ width: "0.8rem", height: "0.8rem", color: "#2d7a4f" }} />
+                <span style={{ fontSize: "0.72rem", color: "#166534", fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>
+                  {activities.length > 0 ? `${activities.length} activit${activities.length === 1 ? "y" : "ies"} selected` : "No activities selected yet"}
+                  {` · ${NUM_DAYS} day${NUM_DAYS !== 1 ? "s" : ""}`}
+                </span>
+              </div>
 
               {displayDays.map((day) => (
                 <div key={day.day} style={{
@@ -813,8 +680,8 @@ export function MyTripPage() {
                   {[
                     { label: "Per Person",    value: `£${Math.round(totalCostDisplay / Math.max(travelers, 1))}` },
                     { label: "Per Day",       value: `£${Math.round(totalCostDisplay / Math.max(nights, 1))}` },
-                    { label: "Within Budget?",value: "✓ Yes" },
-                    { label: "Budget Left",   value: "£300" },
+                    { label: "Within Budget?",value: totalCostDisplay <= budget ? "✓ Yes" : "✗ Over" },
+                    { label: "Budget Left",   value: `£${Math.max(0, budget - totalCostDisplay).toLocaleString()}` },
                   ].map(({ label, value }) => (
                     <div key={label} style={{ textAlign: "center" }}>
                       <p style={{ fontSize: "1.5rem", fontWeight: 800, color: "#2d7a4f", fontFamily: "'Playfair Display',serif", lineHeight: 1 }}>{value}</p>
@@ -865,10 +732,10 @@ export function MyTripPage() {
                   <TrendingDown style={{ width: "1.25rem", height: "1.25rem", color: "#2d7a4f", flexShrink: 0 }} />
                   <div>
                     <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#166534", fontFamily: "'Inter',sans-serif" }}>
-                      You saved {(97.2 - 12.4).toFixed(1)} kg CO₂
+                      You saved {(AVG_TRIP_CO2 - carbonDisplay).toFixed(1)} kg CO₂
                     </p>
                     <p style={{ fontSize: "0.75rem", color: "#4b5563", fontFamily: "'Inter',sans-serif" }}>
-                      Equivalent to not driving 350 km or planting 4 trees
+                      Equivalent to not driving {Math.round((AVG_TRIP_CO2 - carbonDisplay) / 0.171)} km or planting {Math.max(1, Math.round((AVG_TRIP_CO2 - carbonDisplay) / 22))} tree{Math.round((AVG_TRIP_CO2 - carbonDisplay) / 22) !== 1 ? "s" : ""}
                     </p>
                   </div>
                 </div>
@@ -880,7 +747,7 @@ export function MyTripPage() {
                   Carbon Offset Options
                 </h3>
                 <p style={{ fontSize: "0.8rem", color: "#6b7280", marginBottom: "1.25rem", fontFamily: "'Inter',sans-serif" }}>
-                  Offset your remaining 12.4 kg CO₂ footprint by supporting one of these verified projects:
+                  Offset your remaining {carbonDisplay} kg CO₂ footprint by supporting one of these verified projects:
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                   {CARBON_OFFSETS.map((o, idx) => (
@@ -979,7 +846,7 @@ export function MyTripPage() {
               Ready to Book Your Eco Adventure?
             </h2>
             <p style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.72)", marginBottom: "1.75rem", fontFamily: "'Inter',sans-serif" }}>
-              Secure your sustainable trip to Paris with our verified eco-friendly partners.
+              {to ? `Secure your sustainable trip to ${to} with our verified eco-friendly partners.` : "Plan and secure your next sustainable journey."}
             </p>
             <div style={{ display: "flex", gap: "0.875rem", justifyContent: "center", flexWrap: "wrap" }}>
               <button style={{

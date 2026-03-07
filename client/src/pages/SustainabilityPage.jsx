@@ -210,8 +210,8 @@ function SimpleAreaChart({ data }) {
    PAGE
 ───────────────────────────────────────── */
 export function SustainabilityPage() {
-  const navigate  = useNavigate();
-  const { trip }  = useTrip();
+  const navigate              = useNavigate();
+  const { trip, setCarbonAnalysis } = useTrip();
 
   const [activeTab, setActiveTab] = useState("how");
   const [openFaq,   setOpenFaq]   = useState(null);
@@ -220,11 +220,26 @@ export function SustainabilityPage() {
   const [aiTips,     setAiTips]     = useState(null);
   const [tipsLoading,setTipsLoading]= useState(false);
 
+  /* Fingerprint for the current booked trip — used to validate the cache.
+     Changes whenever the user books a different trip. */
+  const tripFp = `${trip.distanceKm ?? 0}|${trip.selectedTransport?.mode ?? ""}|${trip.travelers ?? 2}`;
+
+  /* Restore cached analysis if it was produced for this exact trip */
+  const cachedCarbon = trip.carbonAnalysis?._fp === tripFp ? trip.carbonAnalysis : null;
+
   /* AI Carbon Analysis tab */
-  const [aiCarbon,       setAiCarbon]       = useState(null);
+  const [aiCarbon,       setAiCarbonLocal]  = useState(cachedCarbon);
   const [carbonLoading,  setCarbonLoading]  = useState(false);
   const [carbonError,    setCarbonError]    = useState("");
-  const [carbonFetched,  setCarbonFetched]  = useState(false);
+  const [carbonFetched,  setCarbonFetched]  = useState(!!cachedCarbon);
+
+  /* Whenever the trip changes (new booking), invalidate the local cache */
+  useEffect(() => {
+    const newCached = trip.carbonAnalysis?._fp === tripFp ? trip.carbonAnalysis : null;
+    setAiCarbonLocal(newCached);
+    setCarbonFetched(!!newCached);
+    setCarbonError("");
+  }, [tripFp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Real-time AI Calculator tab */
   const [calcInputs, setCalcInputs] = useState({
@@ -234,18 +249,25 @@ export function SustainabilityPage() {
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcError,   setCalcError]   = useState("");
 
-  /* Shared fetch function — callable on first open AND on retry */
+  /* Shared fetch function — callable on first open AND on retry.
+     Persists the result (with a trip fingerprint) to TripContext /
+     localStorage so the analysis survives page navigation. */
   const fetchCarbonAnalysis = () => {
     setCarbonFetched(true);
     setCarbonLoading(true);
     setCarbonError("");
-    setAiCarbon(null);
+    setAiCarbonLocal(null);
     const from       = trip.from       || "London";
     const to         = trip.to         || "Paris";
     const distanceKm = trip.distanceKm || 341;
     const travelers  = trip.travelers  || 2;
     analyzeRoute({ from, to, distanceKm, travelers })
-      .then((res) => setAiCarbon(res))
+      .then((res) => {
+        setAiCarbonLocal(res);
+        /* Persist with fingerprint so the result survives navigation
+           and is only invalidated when the trip changes. */
+        setCarbonAnalysis({ ...res, _fp: tripFp });
+      })
       .catch((err) => {
         if (err.message === "OPENAI_KEY_MISSING") {
           setCarbonError("key_missing");
@@ -739,7 +761,8 @@ export function SustainabilityPage() {
 
         {/* ── AI CARBON ANALYSIS ── */}
         {activeTab === "ai" && (() => {
-          const hasTrip = !!(trip.selectedTransport || (trip.to && trip.distanceKm));
+          /* Require a booked transport — route search alone is not enough */
+          const hasTrip = !!(trip.selectedTransport && trip.distanceKm);
           return (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
 
@@ -755,24 +778,46 @@ export function SustainabilityPage() {
                 <p style={{ fontSize: "1.1rem", fontWeight: 800, color: "#1a2e1a", marginBottom: "0.5rem", fontFamily: "'Inter',sans-serif" }}>
                   No trip booked yet
                 </p>
-                <p style={{ fontSize: "0.875rem", color: "#6b7280", fontFamily: "'Inter',sans-serif", marginBottom: "1.75rem", maxWidth: "28rem", margin: "0 auto 1.75rem", lineHeight: 1.65 }}>
-                  Book a trip first — choose your route, travel mode, and number of passengers — then come back here for a full AI carbon analysis.
+                <p style={{ fontSize: "0.875rem", color: "#6b7280", fontFamily: "'Inter',sans-serif", marginBottom: "1.75rem", maxWidth: "30rem", margin: "0 auto 1.75rem", lineHeight: 1.65 }}>
+                  {trip.to
+                    ? `You've searched a route to ${trip.to} but haven't selected a transport mode yet. Go to Plan Trip, pick your travel option (train, bus, flight, etc.), then return here for your AI carbon analysis.`
+                    : "Search a route on the home page, then select your travel mode on the Plan Trip page — AI carbon analysis will be ready once your trip is booked."
+                  }
                 </p>
-                <button
-                  onClick={() => navigate("/")}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: "0.625rem",
-                    padding: "0.875rem 2rem", borderRadius: "0.875rem",
-                    border: "none", background: "linear-gradient(135deg,#1a3a2a,#2d7a4f)",
-                    color: "#fff", fontSize: "0.925rem", fontWeight: 700,
-                    cursor: "pointer", fontFamily: "'Inter',sans-serif",
-                    boxShadow: "0 6px 20px rgba(45,122,79,0.28)",
-                  }}
-                >
-                  <Leaf style={{ width: "1rem", height: "1rem" }} />
-                  Plan a Trip First
-                  <ArrowRight style={{ width: "1rem", height: "1rem" }} />
-                </button>
+                <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
+                  {trip.to ? (
+                    <button
+                      onClick={() => navigate("/plan-trip")}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: "0.625rem",
+                        padding: "0.875rem 2rem", borderRadius: "0.875rem",
+                        border: "none", background: "linear-gradient(135deg,#1a3a2a,#2d7a4f)",
+                        color: "#fff", fontSize: "0.925rem", fontWeight: 700,
+                        cursor: "pointer", fontFamily: "'Inter',sans-serif",
+                        boxShadow: "0 6px 20px rgba(45,122,79,0.28)",
+                      }}
+                    >
+                      <ArrowRight style={{ width: "1rem", height: "1rem" }} />
+                      Choose Travel Mode
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => navigate("/")}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: "0.625rem",
+                        padding: "0.875rem 2rem", borderRadius: "0.875rem",
+                        border: "none", background: "linear-gradient(135deg,#1a3a2a,#2d7a4f)",
+                        color: "#fff", fontSize: "0.925rem", fontWeight: 700,
+                        cursor: "pointer", fontFamily: "'Inter',sans-serif",
+                        boxShadow: "0 6px 20px rgba(45,122,79,0.28)",
+                      }}
+                    >
+                      <Leaf style={{ width: "1rem", height: "1rem" }} />
+                      Plan a Trip First
+                      <ArrowRight style={{ width: "1rem", height: "1rem" }} />
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 

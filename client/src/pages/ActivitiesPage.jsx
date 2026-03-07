@@ -59,6 +59,9 @@ const CITY_ACTIVITIES = {
     { id:"p4", title:"Parisian Farmers' Market Tour",   category:"food",        image:IMGS.market,      description:"Explore authentic Parisian food markets, taste local produce and learn about sustainable French gastronomy.",          price:12, duration:"2 hours",   emissions:0.05, rating:4.9, reviews:1870,  tags:["Local Food","Sustainable","Guided"],        Icon:Utensils,  featured:false },
     { id:"p5", title:"Seine River Kayak Adventure",     category:"adventure",   image:IMGS.kayak,       description:"Paddle along the Seine and take in iconic Parisian landmarks from a unique water-level perspective.",               price:45, duration:"3 hours",   emissions:0.2,  rating:4.6, reviews:940,   tags:["Outdoor","Active","River View"],            Icon:Heart,     featured:false },
     { id:"p6", title:"Paris City Cycling Tour",         category:"adventure",   image:IMGS.cycling,     description:"Explore Paris on two wheels with an expert guide, covering hidden gems and iconic neighbourhoods.",                  price:28, duration:"3 hours",   emissions:0,    rating:4.8, reviews:5430,  tags:["Zero Emission","Active","Guided"],          Icon:Bike,      featured:false },
+    { id:"p7", title:"Montmartre & Sacré-Cœur Walk",   category:"sightseeing", image:IMGS.sightseeing, description:"Wander the bohemian hilltop village of Montmartre, visit the gleaming Sacré-Cœur Basilica and browse artist studios.", price:0,  duration:"3 hours",   emissions:0.05, rating:4.8, reviews:24000, tags:["Free","Iconic","Views"],                    Icon:Building2, featured:false },
+    { id:"p8", title:"Musée d'Orsay",                  category:"culture",     image:IMGS.museum,      description:"The world's finest Impressionist collection — Monet, Renoir and Van Gogh in a stunning converted railway station.",  price:16, duration:"3 hours",   emissions:0.2,  rating:4.8, reviews:31000, tags:["Impressionism","Art","UNESCO"],             Icon:Camera,    featured:false },
+    { id:"p9", title:"Bois de Boulogne Nature Walk",   category:"nature",      image:IMGS.hiking,      description:"Stroll or cycle through Paris's vast 8.5 km² woodland park — lakes, gardens and wildlife on the city's western edge.", price:0,  duration:"2–3 hours", emissions:0.05, rating:4.6, reviews:7800,  tags:["Free","Forest","Eco-Friendly"],             Icon:TreePine,  featured:false },
   ],
   london: [
     { id:"l1", title:"Tower of London & Crown Jewels",  category:"sightseeing", image:IMGS.sightseeing, description:"Explore the 1,000-year-old Tower of London, home to the dazzling Crown Jewels and centuries of royal history.", price:30, duration:"3 hours",   emissions:0.4,  rating:4.8, reviews:21000, tags:["UNESCO","Historic","Iconic"],              Icon:Building2, featured:true  },
@@ -67,14 +70,9 @@ const CITY_ACTIVITIES = {
     { id:"l4", title:"Borough Market Food Tour",        category:"food",        image:IMGS.market,      description:"Taste your way through London's oldest food market with a local guide — artisan produce and sustainable vendors.",   price:25, duration:"2 hours",   emissions:0.05, rating:4.9, reviews:2100,  tags:["Local Food","Sustainable","Guided"],        Icon:Utensils,  featured:false },
     { id:"l5", title:"Thames Path River Walk",          category:"nature",      image:IMGS.hiking,      description:"Walk the Thames Path from Tower Bridge to Greenwich — 11 km of riverside greenery with stunning city views.",       price:0,  duration:"3–4 hours", emissions:0.05, rating:4.7, reviews:5600,  tags:["Free","Scenic","Eco-Friendly"],             Icon:TreePine,  featured:false },
     { id:"l6", title:"East End Street Art Walking Tour",category:"culture",     image:IMGS.market,      description:"Discover world-famous Banksy murals and vibrant street art in Shoreditch and Brick Lane with an expert guide.",      price:20, duration:"2 hours",   emissions:0.1,  rating:4.6, reviews:1450,  tags:["Urban Art","Guided","Cultural"],            Icon:Camera,    featured:false },
-  ],
-  amsterdam: [
-    { id:"a1", title:"Van Gogh Museum",                 category:"culture",     image:IMGS.museum,      description:"Home to the world's largest collection of Van Gogh artworks — an unmissable cultural experience in Amsterdam.",       price:22, duration:"2–3 hours", emissions:0.3,  rating:4.8, reviews:19200, tags:["Art","Cultural","Indoor"],                  Icon:Camera,    featured:true  },
-    { id:"a2", title:"Canal Boat & Cycling Day",        category:"adventure",   image:IMGS.cycling,     description:"Explore Amsterdam's iconic canals by electric boat, then cycle through the historic Jordaan neighbourhood.",          price:35, duration:"4 hours",   emissions:0.1,  rating:4.7, reviews:4300,  tags:["Zero Emission","Active","Canals"],          Icon:Bike,      featured:false },
-    { id:"a3", title:"Rijksmuseum",                     category:"culture",     image:IMGS.museum,      description:"Discover 800 years of Dutch art and history, including Rembrandt and Vermeer masterpieces.",                         price:22, duration:"3 hours",   emissions:0.3,  rating:4.8, reviews:25000, tags:["Art","Historic","UNESCO"],                  Icon:Camera,    featured:false },
-    { id:"a4", title:"Anne Frank House",                category:"sightseeing", image:IMGS.sightseeing, description:"Visit the historic hiding place of Anne Frank and learn about one of history's most powerful stories of resilience.", price:16, duration:"2 hours",   emissions:0.2,  rating:4.9, reviews:32000, tags:["Historic","Cultural","Essential"],          Icon:Building2, featured:false },
-    { id:"a5", title:"Hortus Botanicus Garden",         category:"nature",      image:IMGS.hiking,      description:"Wander through one of the world's oldest botanical gardens, home to 6,000 plant species in beautiful Amsterdam.",    price:11, duration:"2 hours",   emissions:0.05, rating:4.7, reviews:2800,  tags:["Nature","Gardens","Eco-Certified"],         Icon:TreePine,  featured:false },
-    { id:"a6", title:"Dutch Street Food Market Tour",   category:"food",        image:IMGS.market,      description:"Taste traditional Dutch cheeses, fresh herring and local delicacies on a guided walking food tour.",                 price:28, duration:"2.5 hours",emissions:0.05, rating:4.8, reviews:1900,  tags:["Local Food","Guided","Sustainable"],        Icon:Utensils,  featured:false },
+    { id:"l7", title:"Kew Royal Botanic Gardens",       category:"nature",      image:IMGS.hiking,      description:"Explore 132 hectares of UNESCO-listed gardens — home to the world's largest collection of living plants.",          price:22, duration:"3–4 hours", emissions:0.2,  rating:4.8, reviews:14000, tags:["UNESCO","Gardens","Nature"],                Icon:TreePine,  featured:false },
+    { id:"l8", title:"Notting Hill & Portobello Market",category:"food",        image:IMGS.market,      description:"Browse the world-famous Portobello Road antique market and taste diverse street food in colourful Notting Hill.",   price:0,  duration:"3 hours",   emissions:0.05, rating:4.7, reviews:9800,  tags:["Free","Market","Multicultural"],            Icon:Utensils,  featured:false },
+    { id:"l9", title:"National Gallery",                category:"culture",     image:IMGS.museum,      description:"Free entry to one of the world's great art museums — 2,300 paintings from medieval masters to Impressionists.",    price:0,  duration:"3 hours",   emissions:0.1,  rating:4.8, reviews:29000, tags:["Free","Art","Iconic"],                      Icon:Camera,    featured:false },
   ],
   berlin: [
     { id:"b1", title:"East Side Gallery & Wall Trail",  category:"culture",     image:IMGS.museum,      description:"Walk 1.3 km of the Berlin Wall turned open-air gallery — the world's largest permanent outdoor art installation.",    price:0,  duration:"2 hours",   emissions:0.05, rating:4.8, reviews:29000, tags:["Free","Historic","Street Art"],             Icon:Camera,    featured:true  },
@@ -115,6 +113,9 @@ const CITY_ACTIVITIES = {
     { id:"am4", title:"Anne Frank House",              category:"sightseeing", image:IMGS.sightseeing, description:"Visit the historic hiding place of Anne Frank and learn about one of history's most powerful stories of resilience.", price:16, duration:"2 hours",   emissions:0.2,  rating:4.9, reviews:32000, tags:["Historic","Cultural","Essential"],          Icon:Building2, featured:false },
     { id:"am5", title:"Hortus Botanicus Garden",       category:"nature",      image:IMGS.hiking,      description:"Wander through one of the world's oldest botanical gardens, home to 6,000 plant species.",                          price:11, duration:"2 hours",   emissions:0.05, rating:4.7, reviews:2800,  tags:["Nature","Gardens","Eco-Certified"],         Icon:TreePine,  featured:false },
     { id:"am6", title:"Dutch Street Food Market Tour", category:"food",        image:IMGS.market,      description:"Taste traditional Dutch cheeses, fresh herring and local delicacies on a guided walking food tour.",                 price:28, duration:"2.5 hours",emissions:0.05, rating:4.8, reviews:1900,  tags:["Local Food","Guided","Sustainable"],        Icon:Utensils,  featured:false },
+    { id:"am7", title:"Vondelpark Morning Walk",       category:"nature",      image:IMGS.hiking,      description:"Stroll through Amsterdam's beloved 47-hectare Vondelpark at sunrise — rose gardens, ponds and open-air theatre.",    price:0,  duration:"2 hours",   emissions:0.02, rating:4.8, reviews:11000, tags:["Free","Parks","Tranquil"],                  Icon:TreePine,  featured:false },
+    { id:"am8", title:"Heineken Experience Brewery",  category:"food",        image:IMGS.market,      description:"Tour the original 1867 Heineken brewery — interactive history, tasting rooms and behind-the-scenes brewing exhibits.", price:21, duration:"2 hours",  emissions:0.2,  rating:4.5, reviews:18000, tags:["Brewery","Guided","Iconic"],                Icon:Utensils,  featured:false },
+    { id:"am9", title:"Waterland Cycling Day Trip",   category:"adventure",   image:IMGS.cycling,     description:"Cycle north into the Waterland polder — windmills, wooden villages and nature reserves 30 minutes from Amsterdam.",   price:18, duration:"Full Day",  emissions:0,    rating:4.8, reviews:5600,  tags:["Zero Emission","Day Trip","Windmills"],     Icon:Bike,      featured:false },
   ],
   brussels: [
     { id:"br1", title:"Grand Place & Historic Centre", category:"sightseeing", image:IMGS.sightseeing, description:"Explore the magnificent Grand Place — Brussels' UNESCO-listed central square, one of Europe's most beautiful.", price:0,  duration:"2 hours",   emissions:0.05, rating:4.9, reviews:22000, tags:["Free","UNESCO","Iconic"],                   Icon:Building2, featured:true  },
@@ -583,18 +584,21 @@ export function ActivitiesPage() {
   const hasTrip     = !!(trip.to);
   const destination = trip.to || "";
 
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [activities,     setActivities]      = useState(() => {
+  const [activeCategory,    setActiveCategory]    = useState("all");
+  const [activities,        setActivities]        = useState(() => {
     if (!hasTrip) return GENERAL_SHOWCASE;
     const cityKey  = destination.trim().toLowerCase();
     return CITY_ACTIVITIES[cityKey] ?? ACTIVITIES;
   });
-  const [loading,     setLoading]     = useState(false);
-  const [dataSource,  setDataSource]  = useState(hasTrip ? "static" : "general");
-  const [loadError,   setLoadError]   = useState("");
-  const [wishlistIds, setWishlistIds] = useState(
+  const [loading,           setLoading]           = useState(false);
+  const [dataSource,        setDataSource]        = useState(hasTrip ? "static" : "general");
+  const [loadError,         setLoadError]         = useState("");
+  const [wishlistIds,       setWishlistIds]       = useState(
     () => trip.savedActivities.map((a) => a.id)
   );
+  /* After 3 minutes of having a booked trip, revert to general browse mode
+     so the user is prompted to plan their next trip. */
+  const [tripFilterExpired, setTripFilterExpired] = useState(false);
 
   /* ── Fetch activities for the destination ── */
   const fetchActivities = useCallback(async (cat = "all") => {
@@ -683,6 +687,32 @@ export function ActivitiesPage() {
     }
   }, [trip.to]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* 3-minute auto-reset: after a trip is booked and this page is visited,
+     revert to the global discovery view to encourage planning the next trip. */
+  useEffect(() => {
+    if (!trip.to) {
+      setTripFilterExpired(false);
+      return;
+    }
+    setTripFilterExpired(false); // reset timer whenever destination changes
+    const timer = setTimeout(() => {
+      setTripFilterExpired(true);
+      setActivities(GENERAL_SHOWCASE);
+      setDataSource("general");
+      setActiveCategory("all");
+    }, 3 * 60 * 1000); // 3 minutes
+    return () => clearTimeout(timer);
+  }, [trip.to]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* showDestination = trip is booked AND the 3-min window hasn't expired yet */
+  const showDestination = hasTrip && !tripFilterExpired;
+
+  /* Keep local wishlist in sync with TripContext — when startNewTrip clears
+     savedActivities (new search), the "Added" state resets on all cards. */
+  useEffect(() => {
+    setWishlistIds(trip.savedActivities.map((a) => a.id));
+  }, [trip.savedActivities.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleCategoryChange = (cat) => {
     setActiveCategory(cat);
     /* For static/general data, filter client-side — no API call needed */
@@ -734,7 +764,7 @@ export function ActivitiesPage() {
             <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.5rem" }}>
               <MapPin style={{ width: "0.875rem", height: "0.875rem", color: "rgba(255,255,255,0.65)" }} />
               <span style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.65)", fontFamily: "'Inter',sans-serif" }}>
-                {hasTrip
+                {showDestination
                   ? <>
                       {destination}
                       {trip.departure ? ` · ${new Date(trip.departure).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}
@@ -751,12 +781,14 @@ export function ActivitiesPage() {
               lineHeight: 1.15,
               marginBottom: "0.375rem",
             }}>
-              {hasTrip ? "Activities & Experiences" : "Explore Activities Worldwide"}
+              {showDestination ? "Activities & Experiences" : "Explore Activities Worldwide"}
             </h1>
             <p style={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.72)", fontFamily: "'Inter',sans-serif" }}>
-              {hasTrip
+              {showDestination
                 ? `Curated eco-friendly experiences in ${destination}`
-                : "Browse global eco-spots · Book a trip to start building your itinerary"}
+                : tripFilterExpired
+                  ? "Browsing global spots · Ready to plan your next trip?"
+                  : "Browse global eco-spots · Add anything you like to your itinerary"}
             </p>
           </div>
 
@@ -837,34 +869,54 @@ export function ActivitiesPage() {
           })}
         </div>
 
-        {/* ── Discovery mode banner (no trip booked) ── */}
-        {!hasTrip && (
+        {/* ── Discovery / Reset banner ── */}
+        {!showDestination && (
           <div style={{
             display: "flex", alignItems: "flex-start", gap: "1rem",
             padding: "1.125rem 1.5rem", borderRadius: "1rem",
-            background: "linear-gradient(135deg,#fffbeb,#fef3c7)",
-            border: "1px solid #fde68a", marginBottom: "1.25rem",
+            background: tripFilterExpired
+              ? "linear-gradient(135deg,#eff6ff,#dbeafe)"
+              : "linear-gradient(135deg,#fffbeb,#fef3c7)",
+            border: tripFilterExpired ? "1px solid #93c5fd" : "1px solid #fde68a",
+            marginBottom: "1.25rem",
           }}>
-            <span style={{ fontSize: "1.5rem", flexShrink: 0, lineHeight: 1 }}>🌍</span>
+            <span style={{ fontSize: "1.5rem", flexShrink: 0, lineHeight: 1 }}>
+              {tripFilterExpired ? "🔄" : "🌍"}
+            </span>
             <div>
-              <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#92400e", fontFamily: "'Inter',sans-serif", margin: "0 0 0.25rem" }}>
-                You're in Discovery Mode
+              <p style={{
+                fontSize: "0.875rem", fontWeight: 700,
+                color: tripFilterExpired ? "#1e40af" : "#92400e",
+                fontFamily: "'Inter',sans-serif", margin: "0 0 0.25rem",
+              }}>
+                {tripFilterExpired
+                  ? "Ready for your next adventure?"
+                  : "You're in Discovery Mode"}
               </p>
-              <p style={{ fontSize: "0.82rem", color: "#78350f", fontFamily: "'Inter',sans-serif", lineHeight: 1.6, margin: "0 0 0.625rem" }}>
-                Browsing global eco-activities from cities worldwide. <strong>Book a trip</strong> on the Home page to unlock your destination's spots and add them to your personal itinerary.
+              <p style={{
+                fontSize: "0.82rem",
+                color: tripFilterExpired ? "#1e3a8a" : "#78350f",
+                fontFamily: "'Inter',sans-serif", lineHeight: 1.6, margin: "0 0 0.625rem",
+              }}>
+                {tripFilterExpired
+                  ? <>Your destination filter has reset after 3 minutes. <strong>Add any activities</strong> you love to your itinerary, or search a new destination to see location-specific spots.</>
+                  : <>Browsing global eco-activities from cities worldwide. <strong>Add any activity</strong> to your itinerary — then book a trip to see your destination's exclusive spots.</>
+                }
               </p>
               <button
                 onClick={() => navigate("/")}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: "0.4rem",
                   padding: "0.5rem 1.125rem", borderRadius: "0.625rem",
-                  border: "none", background: "#d97706", color: "#fff",
+                  border: "none",
+                  background: tripFilterExpired ? "#2563eb" : "#d97706",
+                  color: "#fff",
                   fontSize: "0.8rem", fontWeight: 700, cursor: "pointer",
                   fontFamily: "'Inter',sans-serif",
                 }}
               >
                 <ArrowRight style={{ width: "0.875rem", height: "0.875rem" }} />
-                Plan a Trip Now
+                {tripFilterExpired ? "Plan Another Trip" : "Plan a Trip Now"}
               </button>
             </div>
           </div>
@@ -952,14 +1004,15 @@ export function ActivitiesPage() {
               isWishlisted={wishlistIds.includes(activity.id)}
               onSelect={(id) => toggleSelect(activity)}
               onWishlist={(id) => toggleWishlist(activity)}
-              canSelect={hasTrip}
+              canSelect={true}
             />
           ))}
         </div>
 
         {/* ── CTA ── */}
-        <div style={{ textAlign: "center" }}>
-          {hasTrip ? (
+        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
+          {showDestination ? (
+            /* Active trip — go to My Trip */
             <button
               onClick={() => navigate("/my-trip")}
               style={{
@@ -979,7 +1032,49 @@ export function ActivitiesPage() {
                 : <>Continue to My Trip <ArrowRight style={{ width: "1.25rem", height: "1.25rem" }} /></>
               }
             </button>
+          ) : tripFilterExpired ? (
+            /* Timer expired — two buttons: view saved trip OR plan a new one */
+            <>
+              {selectedIds.length > 0 && (
+                <button
+                  onClick={() => navigate("/my-trip")}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "0.625rem",
+                    padding: "1rem 2.5rem", borderRadius: "9999px",
+                    border: "none", background: "#2d7a4f", color: "#fff",
+                    fontSize: "1rem", fontWeight: 700, cursor: "pointer",
+                    fontFamily: "'Inter',sans-serif",
+                    boxShadow: "0 8px 25px rgba(45,122,79,0.32)",
+                    transition: "transform 0.15s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                >
+                  <CheckCircle2 style={{ width: "1.25rem", height: "1.25rem" }} />
+                  View My Trip ({selectedIds.length} activities)
+                  <ArrowRight style={{ width: "1.25rem", height: "1.25rem" }} />
+                </button>
+              )}
+              <button
+                onClick={() => navigate("/")}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "0.625rem",
+                  padding: "1rem 2.5rem", borderRadius: "9999px",
+                  border: "none", background: "#2563eb", color: "#fff",
+                  fontSize: "1rem", fontWeight: 700, cursor: "pointer",
+                  fontFamily: "'Inter',sans-serif",
+                  boxShadow: "0 8px 25px rgba(37,99,235,0.28)",
+                  transition: "transform 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              >
+                <ArrowRight style={{ width: "1.25rem", height: "1.25rem" }} />
+                Plan Another Trip
+              </button>
+            </>
           ) : (
+            /* No trip at all */
             <button
               onClick={() => navigate("/")}
               style={{
@@ -995,7 +1090,7 @@ export function ActivitiesPage() {
               onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
               <ArrowRight style={{ width: "1.25rem", height: "1.25rem" }} />
-              Plan a Trip to Unlock Activities
+              Plan a Trip to See Destination Spots
             </button>
           )}
         </div>

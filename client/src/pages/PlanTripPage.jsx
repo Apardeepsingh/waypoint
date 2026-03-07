@@ -927,8 +927,7 @@ export function PlanTripPage() {
     if (card) setBookingCard(card);
   }, [allCards]);
 
-  /* Confirm booking → save to context → go to activities.
-     For showcase cards, use the card's own city pair & distance. */
+
   const handleConfirmBooking = useCallback(() => {
     if (!bookingCard) return;
     setSelectedId(bookingCard.id);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  MapPin, Calendar, Users, DollarSign,
+  MapPin, Calendar, Users, PoundSterling,
   Leaf, Wind, Zap, ArrowRight, ChevronDown,
   TreePine, Globe, Shield,
 } from "lucide-react";
@@ -29,7 +29,7 @@ const STATS = [
 
 const FEATURES = [
   {
-    icon: <DollarSign className="w-7 h-7" />,
+    icon: <PoundSterling className="w-7 h-7" />,
     title: "Real-Time Cost Estimation",
     description: "Compare flights, trains, buses, and carpools with live pricing so you know exactly what your trip will cost before you book.",
     color: "#4aab74", bg: "#e8f5ee", tag: "Budget Smart",
@@ -117,7 +117,7 @@ function PlaceAutocompleteInput({ placeholder, value, onTextChange, onPlaceSelec
 
 export function HomePage() {
   const navigate    = useNavigate();
-  const { updateTrip } = useTrip();
+  const { startNewTrip } = useTrip();
 
   const [form, setForm] = useState({
     from: "", to: "",
@@ -185,7 +185,7 @@ export function HomePage() {
       budget:     budgetDisplay,
     };
 
-    updateTrip(tripData);
+    startNewTrip(tripData);
     setSubmitting(false);
     navigate("/plan-trip", { state: tripData });
   };
@@ -458,10 +458,10 @@ export function HomePage() {
                 {/* BUDGET */}
                 <div>
                   <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.07em", color: "#6b7280", marginBottom: "0.4rem", fontFamily: "'Inter', sans-serif" }}>
-                    BUDGET: ${budgetDisplay.toLocaleString()}
+                    BUDGET: £{budgetDisplay.toLocaleString()}
                   </label>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", paddingTop: "0.5rem" }}>
-                    <DollarSign style={{ width: "1rem", height: "1rem", flexShrink: 0, color: "#2d7a4f" }} />
+                    <PoundSterling style={{ width: "1rem", height: "1rem", flexShrink: 0, color: "#2d7a4f" }} />
                     <input
                       type="range"
                       min={200}
@@ -480,8 +480,8 @@ export function HomePage() {
                     />
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.7rem", color: "#9ca3af", marginTop: "0.25rem" }}>
-                    <span>$200</span>
-                    <span>$10k+</span>
+                    <span>£200</span>
+                    <span>£10k+</span>
                   </div>
                 </div>
               </div>
