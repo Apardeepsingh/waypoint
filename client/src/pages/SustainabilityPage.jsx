@@ -723,7 +723,7 @@ export function SustainabilityPage() {
                     OpenAI is analysing your route…
                   </p>
                   <p style={{ fontSize: "0.85rem", color: "#6b7280", fontFamily: "'Inter',sans-serif" }}>
-                    {trip.from || "London"} → {trip.to || "Paris"} · calculating trees saved, CO₂ avoided & per-mode insights
+                    {trip.distanceKm ? `~${trip.distanceKm} km` : "your route"} · {trip.travelers ?? 2} {(trip.travelers ?? 2) === 1 ? "person" : "persons"} · calculating trees saved, CO₂ avoided & per-mode insights
                   </p>
                 </div>
                 <style>{`@keyframes aiPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.12);opacity:0.8}}`}</style>
@@ -808,8 +808,11 @@ export function SustainabilityPage() {
                           OPENAI · CARBON EFFICIENCY ANALYSIS
                         </p>
                         <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#fff", fontFamily: "'Inter',sans-serif", margin: "0.15rem 0 0" }}>
-                          {trip.from || "London"} → {trip.to || "Paris"}
-                          {(trip.travelers ?? 2) > 1 ? ` · ${trip.travelers ?? 2} travellers` : ""}
+                          {trip.distanceKm ? `~${trip.distanceKm} km` : "Multi-mode route"}
+                          {trip.selectedTransport
+                            ? ` · ${trip.selectedTransport.type || trip.selectedTransport.title || "Transport"}`
+                            : insights?.best_mode ? ` · ${insights.best_mode.charAt(0).toUpperCase() + insights.best_mode.slice(1)}` : ""}
+                          {` · ${trip.travelers ?? 2} ${(trip.travelers ?? 2) === 1 ? "person" : "persons"}`}
                         </p>
                       </div>
                       <span style={{
@@ -835,9 +838,9 @@ export function SustainabilityPage() {
                       {(treesSaved > 0 || co2SavedKg > 0 || carKmEquiv > 0) && (
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "1rem", marginBottom: "1.5rem" }}>
                           {[
-                            { emoji: "🌳", value: treesSaved, unit: "trees",   label: "CO₂ equivalent saved",   sub: "vs flying · per person",   color: "#16a34a" },
-                            { emoji: "🌿", value: co2SavedKg, unit: "kg CO₂", label: "avoided per person",      sub: "by choosing train",         color: "#15803d" },
-                            { emoji: "🚗", value: carKmEquiv, unit: "km",     label: "car journey equivalent",  sub: "not driven this trip",      color: "#166534" },
+                            { emoji: "🌳", value: treesSaved, unit: "trees",   label: "CO₂ equivalent saved",   sub: `vs ${insights?.worst_mode || "highest-carbon"} · per person`, color: "#16a34a" },
+                            { emoji: "🌿", value: co2SavedKg, unit: "kg CO₂", label: "avoided per person",      sub: `by choosing ${insights?.best_mode || "eco mode"}`,              color: "#15803d" },
+                            { emoji: "🚗", value: carKmEquiv, unit: "km",     label: "car journey equivalent",  sub: "not driven this trip",                                           color: "#166534" },
                           ].map((s, i) => (
                             <div key={i} style={{
                               background: "#f0fdf4", borderRadius: "1.25rem",
@@ -881,7 +884,7 @@ export function SustainabilityPage() {
                       {aiCarbon.options?.some(o => o.fun_fact) && (
                         <div>
                           <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", letterSpacing: "0.1em", margin: "0 0 0.875rem", fontFamily: "'Inter',sans-serif" }}>
-                            PER-MODE GEMINI INSIGHTS
+                            PER-MODE AI INSIGHTS
                           </p>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "0.875rem" }}>
                             {aiCarbon.options.filter(o => o.fun_fact).map((o) => {
