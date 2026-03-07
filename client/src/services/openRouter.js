@@ -1,12 +1,12 @@
 /* ─────────────────────────────────────────────────────────
-   OpenRouter — Gemini 2.5 Flash Lite integration
-   Model: google/gemini-2.5-flash-lite
+   OpenAI GPT-4o-mini integration
+   Model: gpt-4o-mini
 
    All prompts return structured JSON for easy consumption.
 ───────────────────────────────────────────────────────── */
 
-const BASE  = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "google/gemini-2.5-flash-lite";
+const BASE  = "https://api.openai.com/v1/chat/completions";
+const MODEL = "gpt-4o-mini";
 
 /* ── Robust JSON extractor ──
    Handles: plain JSON, markdown fences, JSON embedded inside prose */
@@ -33,32 +33,31 @@ function extractJson(raw) {
 
 /* ── Core fetch wrapper ── */
 async function ask(userPrompt, systemPrompt = "You are an eco travel AI assistant. Always respond with valid JSON only. No markdown, no explanation — just the JSON object.") {
-  const key = import.meta.env.VITE_OPENROUTER_API_KEY;
-  if (!key || key === "your_openrouter_key_here") {
-    throw new Error("OPENROUTER_KEY_MISSING");
+  const key = import.meta.env.VITE_OPENAI_API_KEY;
+  if (!key || key === "your_openai_key_here") {
+    throw new Error("OPENAI_KEY_MISSING");
   }
 
   const res = await fetch(BASE, {
     method:  "POST",
     headers: {
-      "Authorization":       `Bearer ${key}`,
-      "Content-Type":        "application/json",
-      "HTTP-Referer":        typeof window !== "undefined" ? window.location.origin : "https://waypoint.eco",
-      "X-OpenRouter-Title":  "WayPoint Eco Travel",
+      "Authorization": `Bearer ${key}`,
+      "Content-Type":  "application/json",
     },
     body: JSON.stringify({
-      model:    MODEL,
+      model:           MODEL,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user",   content: userPrompt   },
       ],
-      temperature: 0.6,
+      temperature:     0.6,
+      response_format: { type: "json_object" },
     }),
   });
 
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
-    throw new Error(`OpenRouter ${res.status}: ${txt.slice(0, 300)}`);
+    throw new Error(`OpenAI ${res.status}: ${txt.slice(0, 300)}`);
   }
 
   const data    = await res.json();

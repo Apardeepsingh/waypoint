@@ -225,10 +225,10 @@ export function SustainabilityPage() {
     analyzeRoute({ from, to, distanceKm, travelers })
       .then((res) => setAiCarbon(res))
       .catch((err) => {
-        if (err.message === "OPENROUTER_KEY_MISSING") {
+        if (err.message === "OPENAI_KEY_MISSING") {
           setCarbonError("key_missing");
         } else {
-          console.error("[Gemini] analyzeRoute failed:", err.message);
+          console.error("[OpenAI] analyzeRoute failed:", err.message);
           setCarbonError(err.message ?? "failed");
         }
       })
@@ -560,7 +560,7 @@ export function SustainabilityPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.75rem", borderRadius: "9999px", background: "#e8f5ee", border: "1px solid #bbf7d0" }}>
                   <Sparkles style={{ width: "0.75rem", height: "0.75rem", color: "#2d7a4f" }} />
                   <span style={{ fontSize: "0.72rem", color: "#166534", fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>
-                    AI-generated for {trip.to || "eco travel"} · Gemini Flash
+                    AI-generated for {trip.to || "eco travel"} · GPT-4o mini
                   </span>
                 </div>
               )}
@@ -714,19 +714,19 @@ export function SustainabilityPage() {
                   width: "3.5rem", height: "3.5rem", borderRadius: "50%",
                   background: "linear-gradient(135deg,#1a3a2a,#2d7a4f)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  animation: "geminiPulse 1.8s ease-in-out infinite",
+                  animation: "aiPulse 1.8s ease-in-out infinite",
                 }}>
                   <Sparkles style={{ width: "1.4rem", height: "1.4rem", color: "#86efac" }} />
                 </div>
                 <div style={{ textAlign: "center" }}>
                   <p style={{ fontSize: "1rem", fontWeight: 700, color: "#1a2e1a", marginBottom: "0.375rem", fontFamily: "'Inter',sans-serif" }}>
-                    Gemini is analysing your route…
+                    OpenAI is analysing your route…
                   </p>
                   <p style={{ fontSize: "0.85rem", color: "#6b7280", fontFamily: "'Inter',sans-serif" }}>
                     {trip.from || "London"} → {trip.to || "Paris"} · calculating trees saved, CO₂ avoided & per-mode insights
                   </p>
                 </div>
-                <style>{`@keyframes geminiPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.12);opacity:0.8}}`}</style>
+                <style>{`@keyframes aiPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.12);opacity:0.8}}`}</style>
               </div>
             )}
 
@@ -734,7 +734,7 @@ export function SustainabilityPage() {
             {carbonError === "key_missing" && !carbonLoading && (
               <div style={{ padding: "1.25rem 1.5rem", borderRadius: "1rem", background: "#fff7ed", border: "1px solid #fed7aa" }}>
                 <p style={{ fontSize: "0.875rem", color: "#92400e", fontFamily: "'Inter',sans-serif" }}>
-                  ⚠️ Add your <code>VITE_OPENROUTER_API_KEY</code> to <code>.env</code> to enable AI-powered carbon analysis.
+                  ⚠️ Add your <code>VITE_OPENAI_API_KEY</code> to <code>.env</code> to enable AI-powered carbon analysis.
                 </p>
               </div>
             )}
@@ -752,13 +752,13 @@ export function SustainabilityPage() {
                   <span style={{ fontSize: "1.25rem", flexShrink: 0 }}>⚠️</span>
                   <div>
                     <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#991b1b", fontFamily: "'Inter',sans-serif", margin: "0 0 0.375rem" }}>
-                      Could not reach Gemini AI
+                      Could not reach OpenAI
                     </p>
                     <p style={{ fontSize: "0.78rem", color: "#b91c1c", fontFamily: "'Inter',sans-serif", margin: 0, lineHeight: 1.5 }}>
-                      {carbonError.startsWith("OpenRouter")
+                      {carbonError.startsWith("OpenAI")
                         ? `API error: ${carbonError}`
                         : carbonError.startsWith("AI_PARSE_ERROR")
-                        ? "Gemini returned an unexpected format. Retrying usually fixes this."
+                        ? "OpenAI returned an unexpected format. Retrying usually fixes this."
                         : "Network or API issue. Check your internet connection and try again."}
                     </p>
                   </div>
@@ -782,7 +782,7 @@ export function SustainabilityPage() {
                   }}
                 >
                   <Sparkles style={{ width: "0.875rem", height: "0.875rem" }} />
-                  Retry with Gemini
+                  Retry with OpenAI
                 </button>
               </div>
             )}
@@ -805,7 +805,7 @@ export function SustainabilityPage() {
                       <Sparkles style={{ width: "1.1rem", height: "1.1rem", color: "#86efac", flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: "0.67rem", color: "rgba(255,255,255,0.55)", letterSpacing: "0.12em", fontWeight: 700, fontFamily: "'Inter',sans-serif", margin: 0 }}>
-                          GEMINI AI · CARBON EFFICIENCY ANALYSIS
+                          OPENAI · CARBON EFFICIENCY ANALYSIS
                         </p>
                         <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#fff", fontFamily: "'Inter',sans-serif", margin: "0.15rem 0 0" }}>
                           {trip.from || "London"} → {trip.to || "Paris"}
@@ -818,7 +818,7 @@ export function SustainabilityPage() {
                         fontSize: "0.72rem", fontWeight: 700, fontFamily: "'Inter',sans-serif",
                         border: "1px solid rgba(255,255,255,0.22)", whiteSpace: "nowrap",
                       }}>
-                        ✦ Powered by Gemini Flash
+                        ✦ Powered by GPT-4o mini
                       </span>
                     </div>
 
@@ -962,7 +962,7 @@ export function SustainabilityPage() {
                   Plan a trip first to see your carbon analysis
                 </p>
                 <p style={{ fontSize: "0.875rem", color: "#6b7280", fontFamily: "'Inter',sans-serif", marginBottom: "1.5rem" }}>
-                  Go to the home page, enter your route, and come back here for a full Gemini-powered breakdown.
+                  Go to the home page, enter your route, and come back here for a full AI-powered breakdown.
                 </p>
               </div>
             )}

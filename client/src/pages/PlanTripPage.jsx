@@ -688,7 +688,7 @@ function AICarbonPanel({ aiData, from, to, travelers }) {
           border: "1px solid rgba(255,255,255,0.22)",
           whiteSpace: "nowrap",
         }}>
-          ✦ Powered by Gemini Flash
+          ✦ Powered by GPT-4o mini
         </span>
       </div>
 
@@ -1045,7 +1045,7 @@ export function PlanTripPage() {
         setAiAnalysis(result);
       })
       .catch((err) => {
-        if (err.message === "OPENROUTER_KEY_MISSING") {
+        if (err.message === "OPENAI_KEY_MISSING") {
           setAiError("key_missing");
         } else {
           setAiError(err.message);
@@ -1412,7 +1412,7 @@ export function PlanTripPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.875rem 1.25rem", borderRadius: "1rem", background: "linear-gradient(135deg,#e8f5ee,#f0fdf4)", border: "1px solid #bbf7d0", marginBottom: "1.25rem" }}>
             <Loader2 style={{ width: "1.1rem", height: "1.1rem", color: "#2d7a4f", animation: "spin 1s linear infinite" }} />
             <span style={{ fontSize: "0.875rem", color: "#166534", fontWeight: 600, fontFamily: "'Inter',sans-serif" }}>
-              Gemini AI is analysing your route for real-time carbon data…
+              OpenAI is analysing your route for real-time carbon data…
             </span>
             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </div>
@@ -1428,7 +1428,7 @@ export function PlanTripPage() {
         {aiError === "key_missing" && (
           <div style={{ padding: "0.75rem 1rem", borderRadius: "0.875rem", background: "#fff7ed", border: "1px solid #fed7aa", marginBottom: "1.25rem" }}>
             <p style={{ fontSize: "0.8rem", color: "#92400e", fontFamily: "'Inter',sans-serif", margin: 0 }}>
-              ⚠️ Add your <code>VITE_OPENROUTER_API_KEY</code> to <code>.env</code> to enable AI-powered carbon analysis. Using calculated estimates for now.
+              ⚠️ Add your <code>VITE_OPENAI_API_KEY</code> to <code>.env</code> to enable AI-powered carbon analysis. Using calculated estimates for now.
             </p>
           </div>
         )}

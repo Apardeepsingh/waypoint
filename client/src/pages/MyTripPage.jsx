@@ -191,7 +191,7 @@ export function MyTripPage() {
         setAiItinerary(result);
       })
       .catch((err) => {
-        if (err.message === "OPENROUTER_KEY_MISSING") {
+        if (err.message === "OPENAI_KEY_MISSING") {
           setItinError("key_missing");
         } else {
           setItinError(err.message);
@@ -540,19 +540,19 @@ export function MyTripPage() {
               {itinLoading && (
                 <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.875rem 1.25rem", borderRadius: "1rem", background: "#e8f5ee", border: "1px solid #bbf7d0" }}>
                   <Loader2 style={{ width: "1rem", height: "1rem", color: "#2d7a4f", animation: "spin 1s linear infinite" }} />
-                  <span style={{ fontSize: "0.875rem", color: "#166534", fontWeight: 600, fontFamily: "'Inter',sans-serif" }}>Gemini AI is building your personalised itinerary…</span>
+                  <span style={{ fontSize: "0.875rem", color: "#166534", fontWeight: 600, fontFamily: "'Inter',sans-serif" }}>OpenAI is building your personalised itinerary…</span>
                   <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
                 </div>
               )}
               {itinerary && !itinLoading && (
                 <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 0.875rem", borderRadius: "9999px", background: "#e8f5ee", border: "1px solid #bbf7d0", width: "fit-content" }}>
                   <Sparkles style={{ width: "0.8rem", height: "0.8rem", color: "#2d7a4f" }} />
-                  <span style={{ fontSize: "0.72rem", color: "#166534", fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>AI-generated itinerary · Gemini Flash</span>
+                  <span style={{ fontSize: "0.72rem", color: "#166534", fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>AI-generated itinerary · GPT-4o mini</span>
                 </div>
               )}
               {itinError === "key_missing" && (
                 <div style={{ padding: "0.75rem 1rem", borderRadius: "0.875rem", background: "#fff7ed", border: "1px solid #fed7aa", fontSize: "0.8rem", color: "#92400e", fontFamily: "'Inter',sans-serif" }}>
-                  ⚠️ Add <code>VITE_OPENROUTER_API_KEY</code> to enable AI itinerary. Showing sample plan.
+                  ⚠️ Add <code>VITE_OPENAI_API_KEY</code> to enable AI itinerary. Showing sample plan.
                 </div>
               )}
 

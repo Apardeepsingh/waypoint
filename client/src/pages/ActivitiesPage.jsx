@@ -576,7 +576,7 @@ export function ActivitiesPage() {
       }
       throw new Error("No Places results");
     } catch {
-      /* 2. OpenRouter Gemini AI fallback */
+      /* 2. OpenAI GPT-4o mini fallback */
       try {
         const aiResult = await getEcoActivities({ destination, category: cat, count: 15 });
         if (aiResult?.activities?.length) {
@@ -811,7 +811,7 @@ export function ActivitiesPage() {
           {!loading && dataSource === "ai" && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.75rem", borderRadius: "9999px", background: "#eff6ff", border: "1px solid #bfdbfe" }}>
               <Sparkles style={{ width: "0.75rem", height: "0.75rem", color: "#2563eb" }} />
-              <span style={{ fontSize: "0.72rem", color: "#1d4ed8", fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>AI-generated · Gemini Flash</span>
+              <span style={{ fontSize: "0.72rem", color: "#1d4ed8", fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>AI-generated · GPT-4o mini</span>
             </div>
           )}
           {!loading && loadError && (
