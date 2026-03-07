@@ -259,9 +259,7 @@ export function SustainabilityPage() {
 
   const handleTabChange = (id) => {
     setActiveTab(id);
-    if (id === "ai" && !carbonFetched) {
-      fetchCarbonAnalysis();
-    }
+    // AI Carbon Analysis no longer auto-fetches — user must confirm via button
   };
 
   const runCalc = () => {
@@ -740,8 +738,132 @@ export function SustainabilityPage() {
         )}
 
         {/* ── AI CARBON ANALYSIS ── */}
-        {activeTab === "ai" && (
+        {activeTab === "ai" && (() => {
+          const hasTrip = !!(trip.selectedTransport || (trip.to && trip.distanceKm));
+          return (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+
+            {/* ── STATE 1: No trip booked yet ── */}
+            {!hasTrip && (
+              <div style={{
+                textAlign: "center", padding: "4rem 2rem",
+                background: "#fff", borderRadius: "1.5rem",
+                boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
+                border: "1px solid #e5e7eb",
+              }}>
+                <div style={{ fontSize: "3.5rem", marginBottom: "1rem" }}>🗺️</div>
+                <p style={{ fontSize: "1.1rem", fontWeight: 800, color: "#1a2e1a", marginBottom: "0.5rem", fontFamily: "'Inter',sans-serif" }}>
+                  No trip booked yet
+                </p>
+                <p style={{ fontSize: "0.875rem", color: "#6b7280", fontFamily: "'Inter',sans-serif", marginBottom: "1.75rem", maxWidth: "28rem", margin: "0 auto 1.75rem", lineHeight: 1.65 }}>
+                  Book a trip first — choose your route, travel mode, and number of passengers — then come back here for a full AI carbon analysis.
+                </p>
+                <button
+                  onClick={() => navigate("/")}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "0.625rem",
+                    padding: "0.875rem 2rem", borderRadius: "0.875rem",
+                    border: "none", background: "linear-gradient(135deg,#1a3a2a,#2d7a4f)",
+                    color: "#fff", fontSize: "0.925rem", fontWeight: 700,
+                    cursor: "pointer", fontFamily: "'Inter',sans-serif",
+                    boxShadow: "0 6px 20px rgba(45,122,79,0.28)",
+                  }}
+                >
+                  <Leaf style={{ width: "1rem", height: "1rem" }} />
+                  Plan a Trip First
+                  <ArrowRight style={{ width: "1rem", height: "1rem" }} />
+                </button>
+              </div>
+            )}
+
+            {/* ── STATE 2: Trip booked, waiting for user to start analysis ── */}
+            {hasTrip && !carbonFetched && !carbonLoading && (
+              <div style={{
+                borderRadius: "1.5rem", overflow: "hidden",
+                boxShadow: "0 8px 32px rgba(45,122,79,0.15)",
+                border: "1px solid #bbf7d0",
+              }}>
+                {/* Header */}
+                <div style={{
+                  background: "linear-gradient(135deg,#0f2318,#1a3a2a,#2d7a4f)",
+                  padding: "1.5rem 2rem",
+                  display: "flex", alignItems: "center", gap: "1rem",
+                }}>
+                  <div style={{
+                    width: "2.75rem", height: "2.75rem", borderRadius: "50%",
+                    background: "rgba(134,239,172,0.15)", border: "1px solid rgba(134,239,172,0.3)",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>
+                    <Sparkles style={{ width: "1.1rem", height: "1.1rem", color: "#86efac" }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "0.62rem", color: "rgba(134,239,172,0.7)", letterSpacing: "0.14em", fontWeight: 700, fontFamily: "'Inter',sans-serif", margin: "0 0 0.2rem" }}>
+                      ✦ AI CARBON EFFICIENCY ANALYSIS
+                    </p>
+                    <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#fff", fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                      Ready to analyse your booked trip
+                    </p>
+                  </div>
+                </div>
+
+                {/* Trip summary */}
+                <div style={{ background: "#f8fdf9", padding: "1.5rem 2rem", borderBottom: "1px solid #e8f5ee" }}>
+                  <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#2d7a4f", letterSpacing: "0.1em", margin: "0 0 1rem", fontFamily: "'Inter',sans-serif" }}>
+                    YOUR TRIP DETAILS
+                  </p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "0.875rem" }}>
+                    {[
+                      { emoji: "📍", label: "Route", value: trip.from && trip.to ? `${trip.from} → ${trip.to}` : trip.to || trip.from || "–" },
+                      { emoji: "📏", label: "Distance", value: trip.distanceKm ? `~${trip.distanceKm} km` : "–" },
+                      { emoji: "🚦", label: "Travel Mode", value: trip.selectedTransport ? (trip.selectedTransport.type || trip.selectedTransport.title || trip.selectedTransport.company || "Selected") : "Not selected yet" },
+                      { emoji: "👥", label: "Passengers", value: `${trip.travelers ?? 2} ${(trip.travelers ?? 2) === 1 ? "person" : "persons"}` },
+                    ].map((item) => (
+                      <div key={item.label} style={{
+                        background: "#fff", borderRadius: "0.875rem",
+                        border: "1px solid #e8f5ee", padding: "0.875rem 1rem",
+                        display: "flex", alignItems: "center", gap: "0.625rem",
+                      }}>
+                        <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{item.emoji}</span>
+                        <div>
+                          <p style={{ fontSize: "0.62rem", fontWeight: 700, color: "#9ca3af", letterSpacing: "0.07em", margin: "0 0 0.1rem", fontFamily: "'Inter',sans-serif" }}>
+                            {item.label.toUpperCase()}
+                          </p>
+                          <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1f2937", fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                            {item.value}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div style={{ background: "#fff", padding: "1.5rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+                  <div>
+                    <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1a2e1a", margin: "0 0 0.25rem", fontFamily: "'Inter',sans-serif" }}>
+                      AI will calculate CO₂ savings, tree equivalents, and per-mode insights
+                    </p>
+                    <p style={{ fontSize: "0.75rem", color: "#6b7280", fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                      Powered by GPT-4o mini · takes ~5 seconds
+                    </p>
+                  </div>
+                  <button
+                    onClick={fetchCarbonAnalysis}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: "0.625rem",
+                      padding: "0.875rem 1.75rem", borderRadius: "0.875rem",
+                      border: "none", background: "linear-gradient(135deg,#1a3a2a,#2d7a4f)",
+                      color: "#fff", fontSize: "0.925rem", fontWeight: 700,
+                      cursor: "pointer", fontFamily: "'Inter',sans-serif",
+                      boxShadow: "0 6px 20px rgba(45,122,79,0.28)", whiteSpace: "nowrap",
+                    }}
+                  >
+                    <Sparkles style={{ width: "1rem", height: "1rem" }} />
+                    Start Carbon Analysis
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Loading state */}
             {carbonLoading && (
@@ -1130,24 +1252,9 @@ export function SustainabilityPage() {
               );
             })()}
 
-            {/* No trip set — prompt */}
-            {!carbonLoading && !carbonError && !aiCarbon && (
-              <div style={{
-                textAlign: "center", padding: "3.5rem 2rem",
-                background: "#fff", borderRadius: "1.25rem",
-                boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-              }}>
-                <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🌿</div>
-                <p style={{ fontSize: "1rem", fontWeight: 700, color: "#1a2e1a", marginBottom: "0.5rem", fontFamily: "'Inter',sans-serif" }}>
-                  Plan a trip first to see your carbon analysis
-                </p>
-                <p style={{ fontSize: "0.875rem", color: "#6b7280", fontFamily: "'Inter',sans-serif", marginBottom: "1.5rem" }}>
-                  Go to the home page, enter your route, and come back here for a full AI-powered breakdown.
-                </p>
-              </div>
-            )}
           </div>
-        )}
+          );
+        })()}
 
         {/* ══════════════════════════════════════
             CALCULATE WITH AI TAB
