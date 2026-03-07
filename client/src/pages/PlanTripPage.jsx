@@ -4,10 +4,9 @@ import {
   Plane, Train, Bus, Car,
   Leaf, ArrowRight, Star,
   SlidersHorizontal, ChevronDown, Info, Wind, Filter,
-  CheckCircle2, MapPin, Loader2, Sparkles, X, Shield,
+  CheckCircle2, MapPin, Sparkles, X, Shield,
 } from "lucide-react";
 import { buildTransportOptions, co2Equivalence, calcCO2, ecoScore } from "../utils/carbon";
-import { analyzeRoute } from "../services/openRouter";
 import { useTrip } from "../context/TripContext";
 
 const FILTERS = [
@@ -228,24 +227,6 @@ function TransportCard({ option, isSelected, onSelect }) {
         {/* Expanded amenities */}
         {expanded && (
           <div style={{ marginTop: "0.75rem" }}>
-            {/* Gemini fun fact for this mode */}
-            {option.funFact && (
-              <div style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: "0.5rem",
-                padding: "0.625rem 0.875rem",
-                background: "#f0fdf4",
-                borderRadius: "0.75rem",
-                border: "1px solid #bbf7d0",
-                marginBottom: "0.625rem",
-              }}>
-                <Sparkles style={{ width: "0.8rem", height: "0.8rem", color: "#2d7a4f", flexShrink: 0, marginTop: "0.15rem" }} />
-                <p style={{ fontSize: "0.78rem", color: "#166534", fontFamily: "'Inter',sans-serif", lineHeight: 1.5, margin: 0 }}>
-                  {option.funFact}
-                </p>
-              </div>
-            )}
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
             {option.amenities.map((a) => (
               <span
@@ -639,197 +620,6 @@ const SHOWCASE_CARDS = _DEFS.map(([from, to, distanceKm, mode, operator, typeLab
 });
 
 /* ─────────────────────────────────────────
-   AI CARBON PANEL — Gemini-powered insights
-   Shown only when user came from home search
-   and Gemini has returned carbon_insights.
-───────────────────────────────────────── */
-function AICarbonPanel({ aiData, from, to, travelers }) {
-  const insights = aiData?.carbon_insights;
-  if (!insights && !aiData?.options?.some((o) => o.fun_fact)) return null;
-
-  const treesSaved = insights?.trees_saved    ?? Math.round((insights?.co2_saved_kg ?? 0) / 22);
-  const co2SavedKg = insights?.co2_saved_kg   ?? 0;
-  const carKmEquiv = insights?.car_km_equivalent ?? Math.round(co2SavedKg / 0.171);
-
-  return (
-    <div style={{
-      borderRadius: "1.25rem",
-      overflow: "hidden",
-      marginBottom: "1.5rem",
-      boxShadow: "0 4px 24px rgba(45,122,79,0.15)",
-      border: "1px solid #bbf7d0",
-    }}>
-      {/* ── Header ── */}
-      <div style={{
-        background: "linear-gradient(135deg, #1a3a2a 0%, #2d7a4f 100%)",
-        padding: "1rem 1.5rem",
-        display: "flex",
-        alignItems: "center",
-        gap: "0.875rem",
-        flexWrap: "wrap",
-      }}>
-        <Sparkles style={{ width: "1.1rem", height: "1.1rem", color: "#86efac", flexShrink: 0 }} />
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: "0.67rem", color: "rgba(255,255,255,0.55)", letterSpacing: "0.12em", fontWeight: 700, fontFamily: "'Inter',sans-serif", margin: 0 }}>
-            GEMINI AI · CARBON EFFICIENCY ANALYSIS
-          </p>
-          <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#fff", fontFamily: "'Inter',sans-serif", margin: "0.15rem 0 0" }}>
-            {from} → {to}{travelers > 1 ? ` · ${travelers} travellers` : ""}
-          </p>
-        </div>
-        <span style={{
-          padding: "0.3rem 0.875rem",
-          borderRadius: "9999px",
-          background: "rgba(255,255,255,0.15)",
-          color: "#bbf7d0",
-          fontSize: "0.72rem",
-          fontWeight: 700,
-          fontFamily: "'Inter',sans-serif",
-          border: "1px solid rgba(255,255,255,0.22)",
-          whiteSpace: "nowrap",
-        }}>
-          ✦ Powered by GPT-4o mini
-        </span>
-      </div>
-
-      {/* ── Body ── */}
-      <div style={{ background: "#fff", padding: "1.5rem" }}>
-
-        {/* Headline */}
-        {insights?.headline && (
-          <p style={{
-            fontSize: "1rem",
-            fontWeight: 700,
-            color: "#1a2e1a",
-            marginBottom: "1.25rem",
-            fontFamily: "'Inter',sans-serif",
-            lineHeight: 1.5,
-          }}>
-            💡 {insights.headline}
-          </p>
-        )}
-
-        {/* 3-stat grid: trees / kg CO₂ / car km */}
-        {(treesSaved > 0 || co2SavedKg > 0 || carKmEquiv > 0) && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "1rem",
-            marginBottom: "1.25rem",
-          }}>
-            {[
-              { emoji: "🌳", value: treesSaved,   unit: "trees",   label: "CO₂ equivalent",   sub: "saved vs flying · per person", color: "#16a34a" },
-              { emoji: "🌿", value: co2SavedKg,   unit: "kg CO₂", label: "avoided per person", sub: "by choosing train",             color: "#15803d" },
-              { emoji: "🚗", value: carKmEquiv,   unit: "km",     label: "car journey equiv.", sub: "not driven this trip",          color: "#166534" },
-            ].map((s, i) => (
-              <div key={i} style={{
-                background: "#f0fdf4",
-                borderRadius: "1rem",
-                padding: "1.125rem",
-                border: "1px solid #bbf7d0",
-                textAlign: "center",
-              }}>
-                <div style={{ fontSize: "1.75rem", lineHeight: 1 }}>{s.emoji}</div>
-                <p style={{ fontSize: "1.75rem", fontWeight: 800, color: s.color, lineHeight: 1, fontFamily: "'Inter',sans-serif", margin: "0.375rem 0 0" }}>
-                  {s.value}
-                </p>
-                <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#374151", margin: "0.25rem 0 0", fontFamily: "'Inter',sans-serif" }}>
-                  {s.unit}
-                </p>
-                <p style={{ fontSize: "0.7rem", color: "#6b7280", margin: "0.2rem 0 0", fontFamily: "'Inter',sans-serif", lineHeight: 1.4 }}>
-                  {s.label}
-                </p>
-                <p style={{ fontSize: "0.68rem", color: "#9ca3af", fontFamily: "'Inter',sans-serif", margin: 0 }}>
-                  {s.sub}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Gemini comparison sentence */}
-        {insights?.comparison_sentence && (
-          <div style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "0.75rem",
-            padding: "0.875rem 1.125rem",
-            background: "#e8f5ee",
-            borderRadius: "0.875rem",
-            border: "1px solid #bbf7d0",
-            marginBottom: aiData?.options?.some((o) => o.fun_fact) ? "1.25rem" : 0,
-          }}>
-            <Leaf style={{ width: "1rem", height: "1rem", color: "#2d7a4f", flexShrink: 0, marginTop: "0.1rem" }} />
-            <p style={{ fontSize: "0.875rem", color: "#166534", fontFamily: "'Inter',sans-serif", lineHeight: 1.6, margin: 0 }}>
-              {insights.comparison_sentence}
-            </p>
-          </div>
-        )}
-
-        {/* Per-mode Gemini fun facts */}
-        {aiData?.options?.some((o) => o.fun_fact) && (
-          <div>
-            <p style={{
-              fontSize: "0.7rem",
-              fontWeight: 700,
-              color: "#9ca3af",
-              letterSpacing: "0.1em",
-              margin: "0 0 0.75rem",
-              fontFamily: "'Inter',sans-serif",
-            }}>
-              PER-MODE GEMINI INSIGHTS
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0.75rem" }}>
-              {aiData.options.filter((o) => o.fun_fact).map((o) => {
-                const modeIcon  = { train: "🚄", bus: "🚌", car: "🚗", carpool: "🚗", flight: "✈️" }[o.id] ?? "🚆";
-                const modeColor = { train: "#2d7a4f", bus: "#b45309", car: "#16a34a", carpool: "#16a34a", flight: "#dc2626" }[o.id] ?? "#6b7280";
-                const modeBg    = { train: "#f0fdf4", bus: "#fffbeb", car: "#f0fdf4", carpool: "#f0fdf4",  flight: "#fef2f2"  }[o.id] ?? "#f8faf8";
-                const modeBorder= { train: "#bbf7d0", bus: "#fde68a", car: "#bbf7d0", carpool: "#bbf7d0",  flight: "#fecaca"  }[o.id] ?? "#e5e7eb";
-                return (
-                  <div key={o.id} style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "0.625rem",
-                    padding: "0.875rem",
-                    background: modeBg,
-                    borderRadius: "0.875rem",
-                    border: `1px solid ${modeBorder}`,
-                  }}>
-                    <span style={{ fontSize: "1.3rem", flexShrink: 0, lineHeight: 1 }}>{modeIcon}</span>
-                    <div>
-                      <p style={{
-                        fontSize: "0.68rem",
-                        fontWeight: 700,
-                        color: modeColor,
-                        margin: "0 0 0.25rem",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        fontFamily: "'Inter',sans-serif",
-                      }}>
-                        {o.type ?? o.id}
-                      </p>
-                      <p style={{
-                        fontSize: "0.8rem",
-                        color: "#374151",
-                        lineHeight: 1.5,
-                        fontFamily: "'Inter',sans-serif",
-                        margin: 0,
-                      }}>
-                        {o.fun_fact}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────
    BOOKING MODAL
 ───────────────────────────────────────── */
 function BookingModal({ card, trip, onClose, onConfirm }) {
@@ -1009,7 +799,7 @@ function SkeletonCard() {
 export function PlanTripPage() {
   const navigate    = useNavigate();
   const { state }   = useLocation();
-  const { trip, updateTrip, selectTransport, setAiAnalysis } = useTrip();
+  const { trip, updateTrip, selectTransport } = useTrip();
 
   /* True only when the user arrived via the search form */
   const hasRoute = !!(state?.from && state?.to);
@@ -1029,31 +819,6 @@ export function PlanTripPage() {
     [from, to, distanceKm]
   );
 
-  /* AI analysis state */
-  const [aiData,    setAiData]    = useState(trip.aiAnalysis ?? null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError,   setAiError]   = useState("");
-
-  /* Fetch OpenRouter analysis on mount (once per route) */
-  useEffect(() => {
-    if (aiData || !from || !to) return;
-    setAiLoading(true);
-    setAiError("");
-    analyzeRoute({ from, to, distanceKm, travelers })
-      .then((result) => {
-        setAiData(result);
-        setAiAnalysis(result);
-      })
-      .catch((err) => {
-        if (err.message === "OPENAI_KEY_MISSING") {
-          setAiError("key_missing");
-        } else {
-          setAiError(err.message);
-        }
-      })
-      .finally(() => setAiLoading(false));
-  }, [from, to, distanceKm, travelers]); // eslint-disable-line react-hooks/exhaustive-deps
-
   /* Build base options — apply route-aware operators */
   const BASE_OPTIONS = useMemo(() => {
     const opts = buildTransportOptions(distanceKm, travelers);
@@ -1064,30 +829,7 @@ export function PlanTripPage() {
     });
   }, [distanceKm, travelers, routeOps]);
 
-  /* Merge AI data into base options when available.
-     AI returns ids: "train" | "bus" | "car" | "flight"
-     BASE_OPTIONS modes: "train" | "bus" | "car" | "flight"      */
-  const TRANSPORT_OPTIONS_REAL = useMemo(() => {
-    if (!aiData?.options) return BASE_OPTIONS;
-    return BASE_OPTIONS.map((base) => {
-      /* match AI option by mode OR by option id (handles carpool ↔ car alias) */
-      const ai = aiData.options.find(
-        (o) => o.id === base.mode || o.id === base.id || (base.id === "carpool" && o.id === "car")
-      );
-      if (!ai) return base;
-      return {
-        ...base,
-        co2:      ai.co2_per_person      ?? base.co2,
-        score:    ai.eco_score           ?? base.score,
-        price:    ai.price_per_person_gbp ?? base.price,
-        duration: ai.duration_display    ?? base.duration,
-        badge:    ai.badge !== undefined  ? ai.badge : base.badge,
-        funFact:  ai.fun_fact            ?? "",
-        operator: ai.operator            ?? base.operator,
-        type:     ai.type                ?? base.type,
-      };
-    });
-  }, [BASE_OPTIONS, aiData]);
+  const TRANSPORT_OPTIONS_REAL = BASE_OPTIONS;
 
   /* Carbon chart bars */
   const CARBON_BARS_REAL = useMemo(() => {
@@ -1105,8 +847,7 @@ export function PlanTripPage() {
   const savedKg   = flightOpt && trainOpt ? +(flightOpt.co2 - trainOpt.co2).toFixed(1) : 84.8;
   const ecoTip = !hasRoute
     ? "Trains emit up to 98% less CO₂ per person than flying. Across these 35 routes, choosing rail over air saves an average of 200 kg CO₂ per journey — equivalent to planting 9 trees."
-    : (aiData?.eco_tip
-        ?? `Taking the train saves ${savedKg} kg CO₂ — ${co2Equivalence(savedKg)} or driving ${Math.round(savedKg / 0.171)} km less.`);
+    : `Taking the train saves ${savedKg} kg CO₂ — ${co2Equivalence(savedKg)} or driving ${Math.round(savedKg / 0.171)} km less.`;
 
   const [activeFilter,  setActiveFilter]  = useState("all");
   const [selectedId,    setSelectedId]    = useState(trip.selectedTransport?.id ?? null);
@@ -1407,45 +1148,16 @@ export function PlanTripPage() {
           </div>
         </div>
 
-        {/* ── AI Analysis Banner (only for user-entered routes) ── */}
-        {aiLoading && hasRoute && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.875rem 1.25rem", borderRadius: "1rem", background: "linear-gradient(135deg,#e8f5ee,#f0fdf4)", border: "1px solid #bbf7d0", marginBottom: "1.25rem" }}>
-            <Loader2 style={{ width: "1.1rem", height: "1.1rem", color: "#2d7a4f", animation: "spin 1s linear infinite" }} />
-            <span style={{ fontSize: "0.875rem", color: "#166534", fontWeight: 600, fontFamily: "'Inter',sans-serif" }}>
-              OpenAI is analysing your route for real-time carbon data…
-            </span>
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-          </div>
-        )}
-        {aiData && !aiLoading && hasRoute && (
-          <AICarbonPanel
-            aiData={aiData}
-            from={from}
-            to={to}
-            travelers={travelers}
-          />
-        )}
-        {aiError === "key_missing" && (
-          <div style={{ padding: "0.75rem 1rem", borderRadius: "0.875rem", background: "#fff7ed", border: "1px solid #fed7aa", marginBottom: "1.25rem" }}>
-            <p style={{ fontSize: "0.8rem", color: "#92400e", fontFamily: "'Inter',sans-serif", margin: 0 }}>
-              ⚠️ Add your <code>VITE_OPENAI_API_KEY</code> to <code>.env</code> to enable AI-powered carbon analysis. Using calculated estimates for now.
-            </p>
-          </div>
-        )}
-
-        {/* ── Transport Cards (each has "View Route Map" button inside) ── */}
+        {/* ── Transport Cards ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.25rem" }}>
-          {aiLoading && hasRoute
-            ? [1,2,3,4].map(i => <SkeletonCard key={i} />)
-            : sorted.map((opt) => (
-              <TransportCard
-                key={opt.id}
-                option={opt}
-                isSelected={selectedId === opt.id}
-                onSelect={handleSelect}
-              />
-            ))
-          }
+          {sorted.map((opt) => (
+            <TransportCard
+              key={opt.id}
+              option={opt}
+              isSelected={selectedId === opt.id}
+              onSelect={handleSelect}
+            />
+          ))}
         </div>
 
         {/* ── Selected transport banner ── */}
