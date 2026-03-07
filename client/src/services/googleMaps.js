@@ -1,24 +1,29 @@
+import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 
-import { Loader } from "@googlemaps/js-api-loader";
+let _loaded  = false;
+let _loading = null;
 
-let _loader = null;
-let _google  = null;
-let _loading = null; // pending promise
-
+/* ─────────────────────────────────────────────────────────
+   loadGoogleMaps — loads Maps, Places and Geometry libraries
+   then returns window.google so callers can use the familiar
+   google.maps.* API without any changes.
+───────────────────────────────────────────────────────── */
 export async function loadGoogleMaps() {
-  if (_google) return _google;
+  if (_loaded && window.google) return window.google;
 
   if (!_loading) {
-    if (!_loader) {
-      _loader = new Loader({
-        apiKey:    import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-        version:   "weekly",
-        libraries: ["places", "geometry"],
-      });
-    }
-    _loading = _loader.load().then((google) => {
-      _google = google;
-      return google;
+    setOptions({
+      apiKey:  import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+      version: "weekly",
+    });
+
+    _loading = Promise.all([
+      importLibrary("maps"),
+      importLibrary("places"),
+      importLibrary("geometry"),
+    ]).then(() => {
+      _loaded = true;
+      return window.google;
     });
   }
 
@@ -51,8 +56,6 @@ export async function getRoadDistanceKm(origin, destination) {
 
 /* ─────────────────────────────────────────────────────────
    Directions API — real driving & transit durations.
-   Returns { drivingMins, drivingText, transitMins, transitText }
-   Falls back gracefully if route is not drivable (e.g. international).
 ───────────────────────────────────────────────────────── */
 export async function getRouteDurations(origin, destination) {
   const google = await loadGoogleMaps();
@@ -89,12 +92,6 @@ export async function getRouteDurations(origin, destination) {
 }
 
 /* ─────────────────────────────────────────────────────────
-   Render a Google Map into a DOM element.
-   Shows the route between origin → destination using
-   Directions API (roads). Falls back to geodesic polyline
-   for international / undrivable routes (e.g. Lahore → London).
-───────────────────────────────────────────────────────── */
-/* ─────────────────────────────────────────────────────────
    Geocode a city/place name string → LatLng
 ───────────────────────────────────────────────────────── */
 async function geocodeAddress(google, address) {
@@ -109,6 +106,9 @@ async function geocodeAddress(google, address) {
   });
 }
 
+/* ─────────────────────────────────────────────────────────
+   Render a Google Map with the route between two places.
+───────────────────────────────────────────────────────── */
 export async function renderRouteMap(divEl, originPlace, destinationPlace, originName, destinationName) {
   if (!divEl) return;
   const google = await loadGoogleMaps();
@@ -135,7 +135,6 @@ export async function renderRouteMap(divEl, originPlace, destinationPlace, origi
     gestureHandling: "cooperative",
   });
 
-  /* Resolve coordinates — use place objects first, fall back to geocoding */
   let p1, p2, fromLabel, toLabel;
 
   if (originPlace?.lat != null && destinationPlace?.lat != null) {
@@ -154,7 +153,6 @@ export async function renderRouteMap(divEl, originPlace, destinationPlace, origi
     throw new Error("No location data available for map");
   }
 
-  /* Try Directions API (works for drivable routes) */
   const ds = new google.maps.DirectionsService();
   const dr = new google.maps.DirectionsRenderer({
     map,
@@ -170,12 +168,10 @@ export async function renderRouteMap(divEl, originPlace, destinationPlace, origi
       strokeWeight: 3,
       strokeOpacity: 0.85,
       map,
-      icons: [
-        {
-          icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 4, fillColor: "#2d7a4f", fillOpacity: 1, strokeOpacity: 0 },
-          offset: "50%",
-        },
-      ],
+      icons: [{
+        icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 4, fillColor: "#2d7a4f", fillOpacity: 1, strokeOpacity: 0 },
+        offset: "50%",
+      }],
     });
   };
 
@@ -183,10 +179,9 @@ export async function renderRouteMap(divEl, originPlace, destinationPlace, origi
     [
       { pos: p1, label: fromLabel, color: "#2d7a4f" },
       { pos: p2, label: toLabel,   color: "#1a3a2a" },
-    ].forEach(({ pos, label, color }, i) => {
+    ].forEach(({ pos, label, color }) => {
       const marker = new google.maps.Marker({
-        position: pos, map,
-        title: label,
+        position: pos, map, title: label,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: 11,
@@ -208,11 +203,7 @@ export async function renderRouteMap(divEl, originPlace, destinationPlace, origi
   ds.route(
     { origin: p1, destination: p2, travelMode: google.maps.TravelMode.DRIVING },
     (result, status) => {
-      if (status === "OK") {
-        dr.setDirections(result);
-      } else {
-        drawFallbackArc();
-      }
+      if (status === "OK") { dr.setDirections(result); } else { drawFallbackArc(); }
       addMarkersAndFit();
     }
   );

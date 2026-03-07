@@ -9,6 +9,8 @@ import { useTrip } from "../context/TripContext";
 import { searchActivitiesNear } from "../services/placesSearch";
 import { getEcoActivities } from "../services/openRouter";
 
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+
 /* Category → icon map (for AI-generated activities) */
 const CAT_ICONS = {
   nature:      TreePine,
@@ -580,8 +582,8 @@ export function ActivitiesPage() {
   const navigate = useNavigate();
   const { trip, toggleActivity } = useTrip();
 
-  /* "Trip booked" = user has searched a destination */
-  const hasTrip     = !!(trip.to);
+  /* "Trip planned" = AI itinerary has been generated for this trip */
+  const hasTrip     = !!trip.tripPlan;
   const destination = trip.to || "";
 
   const [activeCategory,    setActiveCategory]    = useState("all");
@@ -605,96 +607,137 @@ export function ActivitiesPage() {
     setLoading(true);
     setLoadError("");
     try {
-      /* 1. Google Places — live data */
-      const places = await searchActivitiesNear(destination, cat);
-      if (places.length > 0) {
-        setActivities(places);
-        setDataSource("places");
-        return;
-      }
-      throw new Error("No Places results");
-    } catch {
-      /* 2. OpenAI GPT-4o mini fallback */
-      try {
-        const aiResult = await getEcoActivities({ destination, category: cat, count: 15 });
-        if (aiResult?.activities?.length) {
-          setActivities(aiResult.activities.map((a, i) => {
-            const cat2 = a.category ?? "sightseeing";
+      /* 1. Python backend — Google Places + AI-ranked spots */
+      const budgetRemaining = parseFloat(trip.tripPlan?.budget_remaining ?? trip.budget ?? 500);
+      const res = await fetch(`${API_URL}/api/activities`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location:         destination,
+          people:           trip.travelers ?? 2,
+          budget_remaining: budgetRemaining,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.activities?.length) {
+          setActivities(data.activities.map((a, i) => {
+            const catKey = (a.category ?? a.type ?? "sightseeing").toLowerCase().replace(/\s+/g, "");
+            const mappedCat =
+              catKey.includes("park") || catKey.includes("nature") ? "nature" :
+              catKey.includes("museum") || catKey.includes("art")   ? "culture" :
+              catKey.includes("food") || catKey.includes("restaurant") ? "food" :
+              catKey.includes("adventure") || catKey.includes("amusement") ? "adventure" :
+              "sightseeing";
             return {
-              id:          a.id ?? `ai-${i}`,
-              title:       a.title,
-              category:    cat2,
-              image:       STOCK_PHOTOS[cat2] ?? STOCK_PHOTOS.default,
-              description: a.description,
-              price:       a.price_gbp ?? 0,
+              id:          a.id ?? `backend-${i}`,
+              title:       a.title ?? a.name,
+              category:    mappedCat,
+              image:       STOCK_PHOTOS[mappedCat] ?? STOCK_PHOTOS.default,
+              description: a.eco_note ?? a.description ?? `A great eco-friendly spot in ${destination}.`,
+              price:       a.price_per_person ?? 0,
               duration:    a.duration ?? "2–3 hours",
-              emissions:   a.emissions_kg ?? 0.2,
+              emissions:   0.2,
               rating:      a.rating ?? 4.5,
-              reviews:     a.reviews ?? 0,
-              tags:        a.eco_tags ?? ["Eco-Friendly", "Local"],
-              eco_score:   a.eco_score ?? 90,
-              featured:    a.featured ?? false,
-              Icon:        CAT_ICONS[cat2] ?? CAT_ICONS.default,
+              reviews:     0,
+              tags:        ["Eco-Friendly", "Local", a.type ?? "Attraction"].filter(Boolean),
+              eco_score:   a.eco_score ?? 80,
+              featured:    false,
+              Icon:        CAT_ICONS[mappedCat] ?? CAT_ICONS.default,
+              vicinity:    a.vicinity ?? "",
+              within_budget: a.within_budget ?? true,
             };
           }));
-          setDataSource("ai");
+          setDataSource("backend");
           return;
         }
-        throw new Error("Empty AI response");
+      }
+      throw new Error("Backend returned no activities");
+    } catch {
+      /* 2. Google Places — live data */
+      try {
+        const places = await searchActivitiesNear(destination, cat);
+        if (places.length > 0) {
+          setActivities(places);
+          setDataSource("places");
+          return;
+        }
+        throw new Error("No Places results");
       } catch {
-        /* 3. City-specific static bank — rich pre-built data per destination */
-        const cityKey = destination.trim().toLowerCase();
-        const cityData = CITY_ACTIVITIES[cityKey];
-        if (cityData && cityData.length > 0) {
-          const filtered2 = cat === "all" ? cityData : cityData.filter((a) => a.category === cat);
-          setActivities(filtered2.length > 0 ? filtered2 : cityData);
+        /* 3. OpenAI GPT-4o mini fallback */
+        try {
+          const aiResult = await getEcoActivities({ destination, category: cat, count: 15 });
+          if (aiResult?.activities?.length) {
+            setActivities(aiResult.activities.map((a, i) => {
+              const cat2 = a.category ?? "sightseeing";
+              return {
+                id:          a.id ?? `ai-${i}`,
+                title:       a.title,
+                category:    cat2,
+                image:       STOCK_PHOTOS[cat2] ?? STOCK_PHOTOS.default,
+                description: a.description,
+                price:       a.price_gbp ?? 0,
+                duration:    a.duration ?? "2–3 hours",
+                emissions:   a.emissions_kg ?? 0.2,
+                rating:      a.rating ?? 4.5,
+                reviews:     a.reviews ?? 0,
+                tags:        a.eco_tags ?? ["Eco-Friendly", "Local"],
+                eco_score:   a.eco_score ?? 90,
+                featured:    a.featured ?? false,
+                Icon:        CAT_ICONS[cat2] ?? CAT_ICONS.default,
+              };
+            }));
+            setDataSource("ai");
+            return;
+          }
+          throw new Error("Empty AI response");
+        } catch {
+          /* 4. City-specific static bank */
+          const cityKey  = destination.trim().toLowerCase();
+          const cityData = CITY_ACTIVITIES[cityKey];
+          if (cityData && cityData.length > 0) {
+            const filtered2 = cat === "all" ? cityData : cityData.filter((a) => a.category === cat);
+            setActivities(filtered2.length > 0 ? filtered2 : cityData);
+            setDataSource("static");
+            return;
+          }
+          /* 5. Generic fallback */
+          setActivities(ACTIVITIES.map((a) => ({
+            ...a,
+            description: a.description.replace(/Paris|Versailles|Seine|Fontainebleau|Parisian|Louvre/gi, destination),
+          })));
           setDataSource("static");
-          return;
+          setLoadError("Showing popular activity types for this destination.");
         }
-        /* 4. Generic fallback — relabelled static activities */
-        setActivities(ACTIVITIES.map((a) => ({
-          ...a,
-          description: a.description.replace(/Paris|Versailles|Seine|Fontainebleau|Parisian|Louvre/gi, destination),
-        })));
-        setDataSource("static");
-        setLoadError("Showing popular activity types for this destination.");
       }
     } finally {
       setLoading(false);
     }
-  }, [destination]);
+  }, [destination, trip.tripPlan, trip.budget, trip.travelers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* On mount / destination change:
      - No trip → show general showcase (no API call)
-     - Trip booked + city in local data → show static data (no API call)
-     - Trip booked + city NOT in local data → fall back to AI */
+     - Trip booked → always call backend (Google Places + AI ranking) first,
+       then fall through to static bank if backend is unavailable */
   useEffect(() => {
     setActiveCategory("all");
-    if (!trip.to) {
+    if (!hasTrip) {
       setActivities(GENERAL_SHOWCASE);
       setDataSource("general");
       setLoading(false);
       return;
     }
-    const cityKey  = trip.to.trim().toLowerCase();
-    const cityData = CITY_ACTIVITIES[cityKey];
-    if (cityData && cityData.length > 0) {
-      setActivities(cityData);
-      setDataSource("static");
-      setLoading(false);
-    } else {
-      fetchActivities("all");
-    }
-  }, [trip.to]); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchActivities("all");
+  }, [hasTrip]); // eslint-disable-line react-hooks-exhaustive-deps
 
   /* 3-minute auto-reset: after a trip is booked and this page is visited,
      revert to the global discovery view to encourage planning the next trip. */
   useEffect(() => {
-    if (!trip.to) {
+    if (!hasTrip) {
       setTripFilterExpired(false);
       return;
     }
-    setTripFilterExpired(false); // reset timer whenever destination changes
+    setTripFilterExpired(false); // reset timer whenever destination or booking changes
     const timer = setTimeout(() => {
       setTripFilterExpired(true);
       setActivities(GENERAL_SHOWCASE);
@@ -702,10 +745,100 @@ export function ActivitiesPage() {
       setActiveCategory("all");
     }, 3 * 60 * 1000); // 3 minutes
     return () => clearTimeout(timer);
-  }, [trip.to]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasTrip]); // eslint-disable-line react-hooks-exhaustive-deps
 
   /* showDestination = trip is booked AND the 3-min window hasn't expired yet */
   const showDestination = hasTrip && !tripFilterExpired;
+
+  /* ── Empty state: no booked trip yet → prompt user to plan first ── */
+  if (!hasTrip) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        background: "linear-gradient(160deg,#f0fdf4,#ecfdf5)",
+        gap: "1.25rem", padding: "2rem", textAlign: "center",
+      }}>
+        <div style={{
+          width: "4.5rem", height: "4.5rem", borderRadius: "1.25rem",
+          background: "#dcfce7",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <MapPin style={{ width: "2.25rem", height: "2.25rem", color: "#2d7a4f" }} />
+        </div>
+        <div>
+          <h2 style={{
+            fontFamily: "'Playfair Display',serif",
+            fontSize: "1.9rem", fontWeight: 700,
+            color: "#1a2e1a", marginBottom: "0.5rem",
+          }}>
+            Discover Eco Spots for Your Trip
+          </h2>
+          <p style={{
+            color: "#6b7280", fontFamily: "'Inter',sans-serif",
+            fontSize: "0.95rem", maxWidth: "26rem", margin: "0 auto",
+          }}>
+            Plan your trip first — once you choose a destination, AI-powered eco-friendly spots
+            specific to that city or country will appear here.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", justifyContent: "center" }}>
+          <button
+            onClick={() => navigate("/")}
+            style={{
+              padding: "0.8rem 2.25rem", borderRadius: "0.875rem", border: "none",
+              background: "linear-gradient(135deg,#2d7a4f,#4aab74)",
+              color: "#fff", fontFamily: "'Inter',sans-serif",
+              fontSize: "1rem", fontWeight: 700, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: "0.5rem",
+              boxShadow: "0 8px 25px rgba(45,122,79,0.3)",
+            }}
+          >
+            <ArrowRight style={{ width: "1rem", height: "1rem" }} />
+            Plan My Trip
+          </button>
+          <button
+            onClick={() => navigate("/plan-trip")}
+            style={{
+              padding: "0.8rem 2rem", borderRadius: "0.875rem",
+              border: "1.5px solid #86efac", background: "#fff",
+              color: "#2d7a4f", fontFamily: "'Inter',sans-serif",
+              fontSize: "1rem", fontWeight: 600, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: "0.5rem",
+            }}
+          >
+            <Leaf style={{ width: "1rem", height: "1rem" }} />
+            View Itinerary
+          </button>
+        </div>
+
+        {/* Teaser — show a blurred preview of what awaits */}
+        <div style={{
+          marginTop: "1.5rem",
+          display: "grid", gridTemplateColumns: "repeat(3,1fr)",
+          gap: "0.75rem", maxWidth: "42rem", width: "100%",
+          opacity: 0.35, pointerEvents: "none", filter: "blur(2px)",
+        }}>
+          {[
+            { img: "https://images.unsplash.com/photo-1568515387631-8b650bbcdb90?w=400&q=60", label: "Culture" },
+            { img: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400&q=60", label: "Nature" },
+            { img: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&q=60", label: "Adventure" },
+          ].map(({ img, label }) => (
+            <div key={label} style={{ borderRadius: "1rem", overflow: "hidden", position: "relative", height: "8rem" }}>
+              <img src={img} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0.4rem 0.6rem", background: "rgba(0,0,0,0.4)", color: "#fff", fontSize: "0.75rem", fontWeight: 700, fontFamily: "'Inter',sans-serif" }}>
+                {label}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: "0.75rem", color: "#9ca3af", fontFamily: "'Inter',sans-serif", marginTop: "0.25rem" }}>
+          AI-curated spots unlock after you choose a destination
+        </p>
+      </div>
+    );
+  }
 
   /* Keep local wishlist in sync with TripContext — when startNewTrip clears
      savedActivities (new search), the "Added" state resets on all cards. */

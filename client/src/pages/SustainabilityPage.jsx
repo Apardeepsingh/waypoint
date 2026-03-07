@@ -216,6 +216,23 @@ export function SustainabilityPage() {
   const [activeTab, setActiveTab] = useState("how");
   const [openFaq,   setOpenFaq]   = useState(null);
 
+  /* ─────────────────────────────────────────────────────────
+     WayPoint CO₂ formula constants
+     Formula: (vehicle total CO₂/km ÷ passenger capacity) × distance
+     ───────────────────────────────────────────────────────── */
+  const CO2_G_KM = { car: 102, bus: 1000, train: 50, ferry: 200, flight: 200, motorbike: 102 };
+  const CO2_CAP  = { car: null, bus: 30, train: 200, ferry: 150, flight: 150, motorbike: 1 };
+  const FUEL_MULT = { petrol: 1.0, electric: 0.2, hybrid: 0.5 };
+
+  /* Returns kg CO₂ per person for a given vehicle / distance / pax */
+  const formulaCO2 = (vehicle, passengers, distanceKm, fuelType = "petrol") => {
+    const totalG    = CO2_G_KM[vehicle] ?? 102;
+    const cap       = CO2_CAP[vehicle] ?? passengers;
+    const effectCap = (vehicle === "car" || vehicle === "motorbike") ? passengers : cap;
+    const fuel      = (vehicle === "car" || vehicle === "motorbike") ? (FUEL_MULT[fuelType] ?? 1) : 1;
+    return (totalG / effectCap) * fuel * distanceKm / 1000; // kg CO₂ per person
+  };
+
   /* AI-powered eco tips */
   const [aiTips,     setAiTips]     = useState(null);
   const [tipsLoading,setTipsLoading]= useState(false);
@@ -249,30 +266,107 @@ export function SustainabilityPage() {
   const [calcLoading, setCalcLoading] = useState(false);
   const [calcError,   setCalcError]   = useState("");
 
-  /* Shared fetch function — callable on first open AND on retry.
-     Persists the result (with a trip fingerprint) to TripContext /
-     localStorage so the analysis survives page navigation. */
+  /* Extract commute step from tripPlan and back-calculate distance using the formula */
+  const tripPlanCO2 = (() => {
+    if (!trip.tripPlan) return null;
+    const step = trip.tripPlan.itinerary?.find((s) => s.type === "Commute" || s.type === "commute");
+    if (!step) return null;
+    const perPerson  = parseFloat((step.co2_per_person ?? "0").replace(/[^0-9.]/g, "")) || 0;
+    const modeStr    = (step.chosen_option ?? trip.selectedTransport?.title ?? "train").toLowerCase();
+    const modeKey    = modeStr.includes("train") ? "train"
+      : modeStr.includes("bus")    ? "bus"
+      : modeStr.includes("car")    ? "car"
+      : modeStr.includes("flight") ? "flight"
+      : modeStr.includes("ferry")  ? "ferry"
+      : "train";
+    const travelers  = trip.travelers || 2;
+    const rateGPerKmPerson = CO2_G_KM[modeKey] / (CO2_CAP[modeKey] ?? travelers);
+    const distance   = rateGPerKmPerson > 0 ? Math.round((perPerson * 1000) / rateGPerKmPerson) : null;
+    return { perPerson, modeKey, modeStr: step.chosen_option ?? modeKey, distance };
+  })();
+
+  /* Build a formula-based local analysis result (no OpenAI) */
+  const buildLocalAnalysis = ({ perPerson, modeKey, modeStr, distance, travelers, from, to }) => {
+    const flightPP = formulaCO2("flight", travelers, distance);
+    const trainPP  = formulaCO2("train",  travelers, distance);
+    const busPP    = formulaCO2("bus",    travelers, distance);
+    const carPP    = formulaCO2("car",    travelers, distance);
+    const saved    = Math.max(0, flightPP - perPerson);
+    const savePct  = flightPP > 0 ? Math.round((saved / flightPP) * 100) : 0;
+    const totalSaved = +(saved * travelers).toFixed(1);
+    const trees    = Math.ceil((perPerson * travelers) / 22);
+    const treesVsFlight = Math.ceil(totalSaved / 22);
+    return {
+      route_summary: `Your ${from} → ${to} trip via ${modeStr} emits ${perPerson.toFixed(2)} kg CO₂/person — ${savePct}% less than flying the same route.`,
+      carbon_insights: {
+        co2_saved_kg:         totalSaved,
+        trees_saved:          treesVsFlight,
+        car_km_equivalent:    Math.round(totalSaved / 0.171),
+        saving_pct:           savePct,
+        best_mode:            "train",
+        worst_mode:           "flight",
+        headline:             `${savePct}% greener than flying the same route`,
+        comparison_sentence:  `Taking ${modeStr} instead of flying saves ${savePct}% CO₂. Your group of ${travelers} avoided ${totalSaved} kg CO₂ — equivalent to planting ${treesVsFlight} tree${treesVsFlight !== 1 ? "s" : ""}.`,
+      },
+      options: [
+        { id: "train",  type: "Train",  co2_per_person: +trainPP.toFixed(2),  eco_score: 90, eco_label: "Greenest option",     fun_fact: "Trains emit 6-10× less CO₂ than flights for the same distance." },
+        { id: "bus",    type: "Bus",    co2_per_person: +busPP.toFixed(2),    eco_score: 74, eco_label: "Very low emissions",   fun_fact: "A full bus has a lower footprint per person than almost any other motorised transport." },
+        { id: "car",    type: "Car",    co2_per_person: +carPP.toFixed(2),    eco_score: 45, eco_label: "Moderate — carpool",   fun_fact: "Adding one extra passenger cuts per-person car emissions in half." },
+        { id: "flight", type: "Flight", co2_per_person: +flightPP.toFixed(2), eco_score: 12, eco_label: "Highest impact",      fun_fact: "Aviation CO₂ at altitude has ≈2× the global-warming impact of ground-level emissions." },
+      ],
+      eco_tip: `Offset this trip's ${(perPerson * travelers).toFixed(1)} kg CO₂ by planting ${trees} tree${trees !== 1 ? "s" : ""} — or choose train next time and reduce emissions by ${savePct}%.`,
+      savings_headline: `Your group of ${travelers} saved ~${totalSaved} kg CO₂ vs flying — equal to ${treesVsFlight} tree${treesVsFlight !== 1 ? "s" : ""} planted! 🌳`,
+      booked_co2_per_person: perPerson,
+      booked_mode:           modeStr,
+      booked_distance_km:    distance,
+      booked_trees_to_offset: trees,
+      _source: "formula",
+    };
+  };
+
+  /* Fetch analysis — tries OpenAI, falls back to formula when it fails */
   const fetchCarbonAnalysis = () => {
     setCarbonFetched(true);
     setCarbonLoading(true);
     setCarbonError("");
     setAiCarbonLocal(null);
-    const from       = trip.from       || "London";
-    const to         = trip.to         || "Paris";
-    const distanceKm = trip.distanceKm || 341;
-    const travelers  = trip.travelers  || 2;
+
+    const from      = trip.from      || "Origin";
+    const to        = trip.to        || "Destination";
+    const travelers = trip.travelers || 2;
+    /* Prefer formula back-calculated distance; fall back to stored or default */
+    const distanceKm = tripPlanCO2?.distance || trip.distanceKm || 341;
+
     analyzeRoute({ from, to, distanceKm, travelers })
       .then((res) => {
-        setAiCarbonLocal(res);
-        /* Persist with fingerprint so the result survives navigation
-           and is only invalidated when the trip changes. */
-        setCarbonAnalysis({ ...res, _fp: tripFp });
+        /* Enrich the OpenAI result with the actual booked CO2 from tripPlan */
+        const merged = { ...res };
+        if (tripPlanCO2?.perPerson) {
+          const fl = formulaCO2("flight", travelers, distanceKm);
+          const saved = Math.max(0, fl - tripPlanCO2.perPerson);
+          merged.booked_co2_per_person = tripPlanCO2.perPerson;
+          merged.booked_mode           = tripPlanCO2.modeStr;
+          merged.booked_distance_km    = distanceKm;
+          merged.booked_trees_to_offset = Math.ceil((tripPlanCO2.perPerson * travelers) / 22);
+          merged.carbon_insights = merged.carbon_insights ?? {};
+          merged.carbon_insights.co2_saved_kg  = +(saved * travelers).toFixed(1);
+          merged.carbon_insights.trees_saved   = Math.ceil((saved * travelers) / 22);
+          merged.carbon_insights.saving_pct    = fl > 0 ? Math.round((saved / fl) * 100) : 0;
+        }
+        setAiCarbonLocal(merged);
+        setCarbonAnalysis({ ...merged, _fp: tripFp });
       })
       .catch((err) => {
         if (err.message === "OPENAI_KEY_MISSING") {
           setCarbonError("key_missing");
+        } else if (tripPlanCO2?.perPerson) {
+          /* OpenAI failed — use formula-based local analysis instead */
+          const local = buildLocalAnalysis({
+            ...tripPlanCO2, travelers, from, to,
+          });
+          setAiCarbonLocal(local);
+          setCarbonAnalysis({ ...local, _fp: tripFp });
         } else {
-          console.error("[OpenAI] analyzeRoute failed:", err.message);
           setCarbonError(err.message ?? "failed");
         }
       })
@@ -288,19 +382,75 @@ export function SustainabilityPage() {
     const km  = parseFloat(calcInputs.distance);
     const pax = parseInt(calcInputs.passengers, 10);
     if (!km || km <= 0 || !pax || pax < 1) return;
+
     setCalcLoading(true);
     setCalcError("");
     setCalcResult(null);
-    calculateCarbonRealtime({
-      distanceKm:      km,
-      vehicleType:     calcInputs.vehicle,
-      passengers:      pax,
-      fuelType:        calcInputs.fuelType,
-      userInstruction: calcInputs.instruction.trim(),
-    })
-      .then(setCalcResult)
-      .catch((err) => setCalcError(err.message ?? "failed"))
-      .finally(() => setCalcLoading(false));
+
+    /* ── Apply WayPoint formula directly (no API call) ── */
+    const perPerson = formulaCO2(calcInputs.vehicle, pax, km, calcInputs.fuelType);
+    const totalCO2  = +(perPerson * pax).toFixed(2);
+    const ppRound   = +perPerson.toFixed(2);
+    const trees     = Math.ceil(totalCO2 / 22);
+
+    /* All-mode comparison */
+    const modeLabels = { car: "🚗 Car", bus: "🚌 Bus", train: "🚄 Train", flight: "✈️ Flight", ferry: "⛴️ Ferry" };
+    const alternatives = Object.keys(modeLabels)
+      .filter((m) => m !== calcInputs.vehicle)
+      .map((m) => ({ mode: m, co2: +formulaCO2(m, pax, km, "petrol").toFixed(2) }))
+      .sort((a, b) => a.co2 - b.co2);
+
+    /* Formula string for the breakdown panel */
+    const totalG   = CO2_G_KM[calcInputs.vehicle] ?? 102;
+    const cap      = CO2_CAP[calcInputs.vehicle] ?? pax;
+    const effCap   = (calcInputs.vehicle === "car" || calcInputs.vehicle === "motorbike") ? pax : cap;
+    const fuel     = (calcInputs.vehicle === "car" || calcInputs.vehicle === "motorbike") ? (FUEL_MULT[calcInputs.fuelType] ?? 1) : 1;
+    const formulaStr = `(${totalG} g CO₂/km ÷ ${effCap} passengers)${fuel !== 1 ? ` × ${fuel} fuel factor` : ""} × ${km} km ÷ 1000 = ${ppRound} kg CO₂/person`;
+
+    const rating    = ppRound < 10 ? "eco" : ppRound < 50 ? "moderate" : "high";
+    const ratingLbl = rating === "eco" ? "Eco Friendly 🌿" : rating === "moderate" ? "Moderate Impact ⚡" : "High Carbon 🔴";
+
+    const localResult = {
+      total_co2_kg:      totalCO2,
+      co2_per_person_kg: ppRound,
+      trees_to_offset:   trees,
+      rating,
+      rating_label:  ratingLbl,
+      rating_reason: `${calcInputs.vehicle.charAt(0).toUpperCase() + calcInputs.vehicle.slice(1)} · ${km} km · ${pax} passenger${pax !== 1 ? "s" : ""}${fuel !== 1 ? ` · ${calcInputs.fuelType}` : ""}`,
+      breakdown:     formulaStr,
+      equivalent:    `${trees} tree${trees !== 1 ? "s" : ""} planted for 1 year would offset ${totalCO2} kg CO₂ (1 tree ≈ 22 kg CO₂/yr)`,
+      eco_alternatives: alternatives
+        .filter((a) => a.co2 < ppRound)
+        .slice(0, 3)
+        .map((a) => `${modeLabels[a.mode]}: ${a.co2} kg/person — saves ${(ppRound - a.co2).toFixed(2)} kg CO₂`),
+      reduction_tips: [
+        calcInputs.vehicle === "car" && pax < 4
+          ? "Carpooling: add passengers to share — each extra person halves the per-head footprint" : null,
+        alternatives[0]?.co2 < ppRound
+          ? `Switch to ${alternatives[0].mode} → ${alternatives[0].co2} kg/person (saves ${(ppRound - alternatives[0].co2).toFixed(2)} kg each)` : null,
+        "Choose the most direct route to minimise total distance",
+        calcInputs.fuelType === "petrol" && (calcInputs.vehicle === "car" || calcInputs.vehicle === "motorbike")
+          ? "Electric vehicle: same journey = 80% less CO₂ with the current UK grid" : null,
+      ].filter(Boolean),
+    };
+
+    setCalcResult(localResult);
+    setCalcLoading(false);
+
+    /* If user typed a question, enrich with OpenAI answer only */
+    if (calcInputs.instruction.trim()) {
+      calculateCarbonRealtime({
+        distanceKm: km, vehicleType: calcInputs.vehicle,
+        passengers: pax, fuelType: calcInputs.fuelType,
+        userInstruction: calcInputs.instruction.trim(),
+      })
+        .then((res) => {
+          if (res?.user_answer) {
+            setCalcResult((prev) => prev ? { ...prev, user_answer: res.user_answer } : prev);
+          }
+        })
+        .catch(() => {/* optional enrichment failed silently */});
+    }
   };
 
   useEffect(() => {
@@ -761,8 +911,8 @@ export function SustainabilityPage() {
 
         {/* ── AI CARBON ANALYSIS ── */}
         {activeTab === "ai" && (() => {
-          /* Require a booked transport — route search alone is not enough */
-          const hasTrip = !!(trip.selectedTransport && trip.distanceKm);
+          /* Accept any evidence of a planned trip */
+          const hasTrip = !!(trip.selectedTransport || (trip.tripPlan && trip.from && trip.to));
           return (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
 
@@ -856,12 +1006,14 @@ export function SustainabilityPage() {
                   <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#2d7a4f", letterSpacing: "0.1em", margin: "0 0 1rem", fontFamily: "'Inter',sans-serif" }}>
                     YOUR TRIP DETAILS
                   </p>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "0.875rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "0.875rem" }}>
                     {[
-                      { emoji: "📍", label: "Route", value: trip.from && trip.to ? `${trip.from} → ${trip.to}` : trip.to || trip.from || "–" },
-                      { emoji: "📏", label: "Distance", value: trip.distanceKm ? `~${trip.distanceKm} km` : "–" },
-                      { emoji: "🚦", label: "Travel Mode", value: trip.selectedTransport ? (trip.selectedTransport.type || trip.selectedTransport.title || trip.selectedTransport.company || "Selected") : "Not selected yet" },
-                      { emoji: "👥", label: "Passengers", value: `${trip.travelers ?? 2} ${(trip.travelers ?? 2) === 1 ? "person" : "persons"}` },
+                      { emoji: "📍", label: "Route",         value: trip.from && trip.to ? `${trip.from} → ${trip.to}` : trip.to || trip.from || "–" },
+                      { emoji: "📏", label: "Est. Distance",  value: tripPlanCO2?.distance ? `~${tripPlanCO2.distance} km` : trip.distanceKm ? `~${trip.distanceKm} km` : "–" },
+                      { emoji: "🚦", label: "Travel Mode",    value: tripPlanCO2?.modeStr || trip.selectedTransport?.title || trip.selectedTransport?.type || "–" },
+                      { emoji: "👥", label: "Passengers",     value: `${trip.travelers ?? 2} ${(trip.travelers ?? 2) === 1 ? "person" : "persons"}` },
+                      { emoji: "💨", label: "Trip CO₂/Person", value: tripPlanCO2?.perPerson ? `${tripPlanCO2.perPerson.toFixed(2)} kg` : trip.tripPlan?.total_co2_emissions ? trip.tripPlan.total_co2_emissions : "–" },
+                      { emoji: "💰", label: "Trip Cost",       value: trip.tripPlan?.total_cost ? `£${trip.tripPlan.total_cost}` : "–" },
                     ].map((item) => (
                       <div key={item.label} style={{
                         background: "#fff", borderRadius: "0.875rem",

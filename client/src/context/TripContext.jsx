@@ -15,15 +15,16 @@ const EMPTY = {
   distanceKm:        null,
   travelers:         2,
   departure:         "",
+  time:              "09:00",
   returnDate:        "",
   budget:            2000,
   selectedTransport: null,
   savedActivities:   [],
   aiAnalysis:        null,
   aiItinerary:       null,
-  /* Cached carbon analysis — stored with a _fp fingerprint so it
-     auto-invalidates when the booked trip changes. */
   carbonAnalysis:    null,
+  /* Full AI itinerary plan returned by the Python backend (/api/itinerary) */
+  tripPlan:          null,
 };
 
 /* ── Storage helpers ── */
@@ -36,10 +37,7 @@ function loadFromStorage() {
   try {
     const raw = localStorage.getItem(storageKey());
     if (!raw) return EMPTY;
-    const parsed = JSON.parse(raw);
-    /* Re-attach the Icon field (functions can't be serialised) — it will
-       be re-resolved by PlanTripPage when the card is rebuilt. */
-    return { ...EMPTY, ...parsed };
+    return { ...EMPTY, ...JSON.parse(raw) };
   } catch {
     return EMPTY;
   }
@@ -47,7 +45,6 @@ function loadFromStorage() {
 
 function saveToStorage(trip) {
   try {
-    /* Strip non-serialisable fields (Icon, React components) before saving */
     const serialisable = {
       ...trip,
       selectedTransport: trip.selectedTransport
@@ -67,50 +64,43 @@ function saveToStorage(trip) {
 export function TripProvider({ children }) {
   const [trip, setTrip] = useState(() => loadFromStorage());
 
-  /* Persist every change to localStorage */
   useEffect(() => {
     saveToStorage(trip);
   }, [trip]);
 
-  /* When active user changes (login / logout / account switch)
-     reload the right data — listens to both the same-tab custom event
-     and the cross-tab native storage event. */
+  /* Listen for user changes (login / logout / account switch).
+     Both listeners are captured in named variables so both are
+     properly removed on cleanup — fixes the memory leak. */
   useEffect(() => {
     const reload = () => setTrip(loadFromStorage());
+    const onStorage = (e) => { if (e.key === "waypoint_active_user_id") reload(); };
+
     window.addEventListener("waypoint_user_changed", reload);
-    window.addEventListener("storage", (e) => {
-      if (e.key === "waypoint_active_user_id") reload();
-    });
+    window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener("waypoint_user_changed", reload);
+      window.removeEventListener("storage", onStorage);
     };
   }, []);
 
-  /* Merge partial updates */
   const updateTrip = useCallback((updates) => {
     setTrip((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  /* Start a completely fresh trip from a new home-page search.
-     Resets ALL user-specific data (activities, transport, AI caches)
-     so every page reflects only the new trip. */
   const startNewTrip = useCallback((searchData) => {
     setTrip({ ...EMPTY, ...searchData });
   }, []);
 
-  /* Set the chosen transport option — also clears any previously cached
-     AI results so My Trip shows fresh data for the new booking. */
   const selectTransport = useCallback((option) => {
     setTrip((prev) => ({
       ...prev,
       selectedTransport: option,
       aiItinerary:       null,
       carbonAnalysis:    null,
-      savedActivities:   [],   // fresh activity list for the new trip
+      savedActivities:   [],
     }));
   }, []);
 
-  /* Toggle an activity in/out of the saved list */
   const toggleActivity = useCallback((activity) => {
     setTrip((prev) => ({
       ...prev,
@@ -120,27 +110,27 @@ export function TripProvider({ children }) {
     }));
   }, []);
 
-  /* Save AI analysis result */
   const setAiAnalysis = useCallback((analysis) => {
     setTrip((prev) => ({ ...prev, aiAnalysis: analysis }));
   }, []);
 
-  /* Save AI itinerary result */
   const setAiItinerary = useCallback((itinerary) => {
     setTrip((prev) => ({ ...prev, aiItinerary: itinerary }));
   }, []);
 
-  /* Save carbon-analysis result (includes _fp fingerprint for cache validation) */
   const setCarbonAnalysis = useCallback((analysis) => {
     setTrip((prev) => ({ ...prev, carbonAnalysis: analysis }));
   }, []);
 
-  /* Reload trip data for a specific user (called on login) */
+  /* Store the full itinerary plan returned by the Python backend */
+  const setTripPlan = useCallback((plan) => {
+    setTrip((prev) => ({ ...prev, tripPlan: plan }));
+  }, []);
+
   const reloadForUser = useCallback(() => {
     setTrip(loadFromStorage());
   }, []);
 
-  /* Reset everything */
   const clearTrip = useCallback(() => {
     setTrip(EMPTY);
     try { localStorage.removeItem(storageKey()); } catch { /* ignore */ }
@@ -156,6 +146,7 @@ export function TripProvider({ children }) {
       setAiAnalysis,
       setAiItinerary,
       setCarbonAnalysis,
+      setTripPlan,
       reloadForUser,
       clearTrip,
     }}>

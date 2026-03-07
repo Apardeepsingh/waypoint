@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MapPin, Calendar, Users, PoundSterling,
   Leaf, Wind, Zap, ArrowRight, ChevronDown,
-  TreePine, Globe, Shield,
+  TreePine, Globe, Shield, Clock,
 } from "lucide-react";
-import { loadGoogleMaps } from "../services/googleMaps";
 import logoImg from "../assets/Untitled_Artwork.png";
-import { haversineKm } from "../utils/carbon";
 import { useTrip } from "../context/TripContext";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 const HERO_IMAGE =
   "https://images.unsplash.com/photo-1581869145044-5b35d5a53430?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb3VudGFpbiUyMGxhbmRzY2FwZSUyMHRyYXZlbCUyMGFlcmlhbCUyMHZpZXd8ZW58MXx8fHwxNzcyODA2NTUzfDA&ixlib=rb-4.1.0&q=80&w=1920";
@@ -48,6 +48,15 @@ const FEATURES = [
   },
 ];
 
+const PROGRESS_MESSAGES = [
+  "Analysing your route and dates…",
+  "Comparing trains, flights and buses…",
+  "Calculating carbon footprint for each option…",
+  "Balancing cost vs CO₂ to pick the best route…",
+  "Building your day-by-day itinerary…",
+  "Finding eco-friendly activities near your stops…",
+];
+
 /* ─── Shared input style ───────────────────────────────────────── */
 const inputBase = {
   background: "#f8faf8",
@@ -61,47 +70,17 @@ const inputBase = {
 function onFocusGreen(e)  { e.target.style.borderColor = "#4aab74"; }
 function onBlurGrey(e)    { e.target.style.borderColor = "#e5e7eb"; }
 
-/* ─── Places Autocomplete Input ─────────────────────────────────
-   Attaches Google Places Autocomplete to a plain <input>.
-   Calls onPlaceSelect({ name, address, lat, lng }) when user picks.
+/* ─── Plain city text input ──────────────────────────────────────
+   The backend (FastAPI) handles all geocoding server-side via
+   the Google Maps Geocoding API, so no Maps JS is needed here.
 ─────────────────────────────────────────────────────────────── */
-function PlaceAutocompleteInput({ placeholder, value, onTextChange, onPlaceSelect }) {
-  const inputRef = useRef(null);
-  const acRef    = useRef(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    loadGoogleMaps().then((google) => {
-      if (cancelled || !inputRef.current || acRef.current) return;
-      const ac = new google.maps.places.Autocomplete(inputRef.current, {
-        types:  ["(cities)"],
-        fields: ["name", "formatted_address", "geometry", "place_id"],
-      });
-      ac.addListener("place_changed", () => {
-        const place = ac.getPlace();
-        if (place?.geometry) {
-          const obj = {
-            name:    place.name,
-            address: place.formatted_address,
-            lat:     place.geometry.location.lat(),
-            lng:     place.geometry.location.lng(),
-          };
-          onTextChange(place.name);
-          onPlaceSelect(obj);
-        }
-      });
-      acRef.current = ac;
-    });
-    return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
+function CityInput({ placeholder, value, onChange }) {
   return (
     <input
-      ref={inputRef}
       type="text"
       placeholder={placeholder}
       value={value}
-      onChange={(e) => { onTextChange(e.target.value); onPlaceSelect(null); }}
+      onChange={(e) => onChange(e.target.value)}
       onFocus={onFocusGreen}
       onBlur={onBlurGrey}
       style={{
@@ -116,78 +95,93 @@ function PlaceAutocompleteInput({ placeholder, value, onTextChange, onPlaceSelec
 }
 
 export function HomePage() {
-  const navigate    = useNavigate();
-  const { startNewTrip } = useTrip();
+  const navigate             = useNavigate();
+  const { startNewTrip, setTripPlan } = useTrip();
 
   const [form, setForm] = useState({
     from: "", to: "",
-    departure: "", returnDate: "",
+    departure: "", time: "09:00", returnDate: "",
     budget: 2000, travelers: 2,
   });
   const [budgetDisplay, setBudgetDisplay] = useState(2000);
 
-  /* Selected place objects from Google Places */
-  const [fromPlace, setFromPlace] = useState(null);
-  const [toPlace,   setToPlace]   = useState(null);
-
   const budgetPct = ((budgetDisplay - 200) / 9800) * 100;
 
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [statusMsg,   setStatusMsg]   = useState("");
+  const [progressStep, setProgressStep] = useState(0);
+
+  /* While the backend is generating the itinerary (can take ~20s),
+     cycle through friendly progress messages instead of a static label. */
+  useEffect(() => {
+    if (!submitting) {
+      setProgressStep(0);
+      return;
+    }
+
+    setStatusMsg(PROGRESS_MESSAGES[0]);
+    const interval = setInterval(() => {
+      setProgressStep((prev) => {
+        const next = Math.min(prev + 1, PROGRESS_MESSAGES.length - 1);
+        setStatusMsg(PROGRESS_MESSAGES[next]);
+        return next;
+      });
+    }, 4500); // advance roughly every 4.5s while waiting
+
+    return () => clearInterval(interval);
+  }, [submitting]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.from || !form.to) return;
     setSubmitting(true);
+    setSubmitError(null);
 
-    let fp = fromPlace;
-    let tp = toPlace;
-
-    /* ── Geocode fallback: if user typed but never clicked an autocomplete
-       suggestion, resolve coordinates from the plain text ── */
-    if (!fp || !tp) {
-      try {
-        const google   = await loadGoogleMaps();
-        const geocoder = new google.maps.Geocoder();
-        const geocodeText = (address) =>
-          new Promise((res) =>
-            geocoder.geocode({ address }, (results, status) => {
-              if (status === "OK" && results[0]) {
-                const loc = results[0].geometry.location;
-                res({
-                  name:    results[0].address_components[0]?.long_name ?? address,
-                  address: results[0].formatted_address,
-                  lat:     loc.lat(),
-                  lng:     loc.lng(),
-                });
-              } else {
-                res(null);
-              }
-            })
-          );
-        if (!fp) fp = await geocodeText(form.from);
-        if (!tp) tp = await geocodeText(form.to);
-      } catch { /* ignore — will fall back to null distance */ }
-    }
-
-    const distanceKm = (fp && tp)
-      ? Math.round(haversineKm(fp.lat, fp.lng, tp.lat, tp.lng))
-      : null;
-
+    /* Build base trip data and store it — backend handles geocoding */
     const tripData = {
       from:       form.from,
       to:         form.to,
-      fromPlace:  fp,
-      toPlace:    tp,
-      distanceKm,
+      fromPlace:  null,
+      toPlace:    null,
+      distanceKm: null,
       departure:  form.departure,
+      time:       form.time,
       returnDate: form.returnDate,
       travelers:  form.travelers,
       budget:     budgetDisplay,
     };
-
     startNewTrip(tripData);
-    setSubmitting(false);
-    navigate("/plan-trip", { state: tripData });
+
+    /* Call the Python backend to generate the full AI itinerary */
+    try {
+      setStatusMsg("Planning your sustainable trip…");
+      const res = await fetch(`${API_URL}/api/itinerary`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          budget:        budgetDisplay,
+          from_location: form.from,
+          date:          form.departure || new Date().toISOString().slice(0, 10),
+          time:          form.time || "09:00 AM",
+          location:      form.to,
+          people:        form.travelers,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Server error" }));
+        throw new Error(err.detail ?? `HTTP ${res.status}`);
+      }
+
+      const plan = await res.json();
+      setTripPlan(plan);
+      setSubmitting(false);
+      navigate("/plan-trip", { state: tripData });
+    } catch (err) {
+      setSubmitting(false);
+      setSubmitError(err.message ?? "Could not reach the planning server. Make sure the backend is running on port 8000.");
+    }
   };
 
   return (
@@ -352,11 +346,10 @@ export function HomePage() {
                   </label>
                   <div style={{ position: "relative" }}>
                     <MapPin style={{ position: "absolute", left: "0.875rem", top: "50%", transform: "translateY(-50%)", width: "1rem", height: "1rem", color: "#2d7a4f", pointerEvents: "none", zIndex: 1 }} />
-                    <PlaceAutocompleteInput
+                    <CityInput
                       placeholder="Departure city or airport"
                       value={form.from}
-                      onTextChange={(v) => setForm((f) => ({ ...f, from: v }))}
-                      onPlaceSelect={setFromPlace}
+                      onChange={(v) => setForm((f) => ({ ...f, from: v }))}
                     />
                   </div>
                 </div>
@@ -368,21 +361,20 @@ export function HomePage() {
                   </label>
                   <div style={{ position: "relative" }}>
                     <MapPin style={{ position: "absolute", left: "0.875rem", top: "50%", transform: "translateY(-50%)", width: "1rem", height: "1rem", color: "#2d7a4f", pointerEvents: "none", zIndex: 1 }} />
-                    <PlaceAutocompleteInput
+                    <CityInput
                       placeholder="Where do you want to go?"
                       value={form.to}
-                      onTextChange={(v) => setForm((f) => ({ ...f, to: v }))}
-                      onPlaceSelect={setToPlace}
+                      onChange={(v) => setForm((f) => ({ ...f, to: v }))}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Row 2 — DEPARTURE / RETURN / TRAVELLERS / BUDGET */}
+              {/* Row 2 — DEPARTURE / TIME / RETURN / TRAVELLERS / BUDGET */}
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(4, 1fr)",
+                  gridTemplateColumns: "repeat(5, 1fr)",
                   gap: "1rem",
                   marginBottom: "1.25rem",
                 }}
@@ -398,6 +390,24 @@ export function HomePage() {
                       type="date"
                       value={form.departure}
                       onChange={(e) => setForm({ ...form, departure: e.target.value })}
+                      onFocus={onFocusGreen}
+                      onBlur={onBlurGrey}
+                      style={{ ...inputBase, paddingLeft: "2.5rem", paddingRight: "0.75rem", paddingTop: "0.875rem", paddingBottom: "0.875rem", borderRadius: "0.875rem" }}
+                    />
+                  </div>
+                </div>
+
+                {/* TIME */}
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.07em", color: "#6b7280", marginBottom: "0.4rem", fontFamily: "'Inter', sans-serif" }}>
+                    TIME
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <Clock style={{ position: "absolute", left: "0.875rem", top: "50%", transform: "translateY(-50%)", width: "1rem", height: "1rem", color: "#2d7a4f", pointerEvents: "none" }} />
+                    <input
+                      type="time"
+                      value={form.time}
+                      onChange={(e) => setForm({ ...form, time: e.target.value })}
                       onFocus={onFocusGreen}
                       onBlur={onBlurGrey}
                       style={{ ...inputBase, paddingLeft: "2.5rem", paddingRight: "0.75rem", paddingTop: "0.875rem", paddingBottom: "0.875rem", borderRadius: "0.875rem" }}
@@ -486,15 +496,34 @@ export function HomePage() {
                 </div>
               </div>
 
+              {/* Error message */}
+              {submitError && (
+                <div style={{
+                  marginBottom: "0.875rem",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "0.75rem",
+                  background: "#fef2f2",
+                  border: "1.5px solid #fca5a5",
+                  color: "#dc2626",
+                  fontSize: "0.875rem",
+                  fontFamily: "'Inter', sans-serif",
+                }}>
+                  {submitError}
+                </div>
+              )}
+
               {/* CTA Button */}
               <button
                 type="submit"
+                disabled={submitting}
                 style={{
                   width: "100%",
                   padding: "1rem",
                   borderRadius: "0.875rem",
                   border: "none",
-                  background: "linear-gradient(135deg, #2d7a4f 0%, #4aab74 100%)",
+                  background: submitting
+                    ? "linear-gradient(135deg, #5a9e78 0%, #7dc99a 100%)"
+                    : "linear-gradient(135deg, #2d7a4f 0%, #4aab74 100%)",
                   color: "#fff",
                   display: "flex",
                   alignItems: "center",
@@ -503,17 +532,17 @@ export function HomePage() {
                   fontFamily: "'Inter', sans-serif",
                   fontWeight: 700,
                   fontSize: "1rem",
-                  cursor: "pointer",
+                  cursor: submitting ? "not-allowed" : "pointer",
                   boxShadow: "0 8px 25px rgba(45,122,79,0.35)",
                   transition: "opacity 0.2s, transform 0.2s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.92"; e.currentTarget.style.transform = "scale(1.01)"; }}
+                onMouseEnter={(e) => { if (!submitting) { e.currentTarget.style.opacity = "0.92"; e.currentTarget.style.transform = "scale(1.01)"; } }}
                 onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "scale(1)"; }}
               >
                 {submitting ? (
                   <>
-                    <svg style={{ width: "1.2rem", height: "1.2rem", animation: "spin 1s linear infinite" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeOpacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
-                    Locating cities…
+                    <svg style={{ width: "1.2rem", height: "1.2rem", animation: "spin 1s linear infinite", flexShrink: 0 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeOpacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/></svg>
+                    {statusMsg}
                     <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
                   </>
                 ) : (
@@ -871,29 +900,6 @@ export function HomePage() {
         </div>
       </footer>
 
-      {/* ── Google Places Autocomplete dropdown polish ── */}
-      <style>{`
-        .pac-container {
-          border-radius: 0.75rem !important;
-          margin-top: 4px !important;
-          border: 1.5px solid #e5e7eb !important;
-          box-shadow: 0 12px 40px rgba(0,0,0,0.14) !important;
-          font-family: 'Inter', sans-serif !important;
-          overflow: hidden;
-        }
-        .pac-item {
-          padding: 0.6rem 1rem !important;
-          font-size: 0.875rem !important;
-          cursor: pointer;
-          border-top: 1px solid #f3f4f6 !important;
-        }
-        .pac-item:hover, .pac-item-selected {
-          background: #f0fdf4 !important;
-        }
-        .pac-item-query { color: #1a2e1a !important; font-weight: 600; }
-        .pac-matched    { color: #2d7a4f !important; }
-        .pac-icon       { display: none !important; }
-      `}</style>
     </>
   );
 }
