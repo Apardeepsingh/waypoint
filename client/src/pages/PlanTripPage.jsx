@@ -412,15 +412,25 @@ function ItineraryCard({ step, onBook }) {
 
           {expanded && (
             <div style={{ padding: "1rem 1.75rem 1.5rem", background: "#fafafa" }}>
-              {step.options_considered.map((opt) => (
-                <OptionRow
-                  key={opt.option}
-                  opt={opt}
-                  isChosen={opt.option.toLowerCase() === step.chosen_option.toLowerCase()}
-                  /* only show Book button on Commute steps */
-                  onBook={isCommute ? onBook : null}
-                />
-              ))}
+              {Array.isArray(step.options_considered) &&
+                step.options_considered.map((opt, idx) => {
+                  const optionLabel = opt?.option ?? "";
+                  const chosenLabel = step?.chosen_option ?? "";
+                  const isChosen =
+                    typeof optionLabel === "string" &&
+                    typeof chosenLabel === "string" &&
+                    optionLabel.toLowerCase() === chosenLabel.toLowerCase();
+
+                  return (
+                    <OptionRow
+                      key={optionLabel || idx}
+                      opt={opt}
+                      isChosen={isChosen}
+                      /* only show Book button on Commute steps */
+                      onBook={isCommute ? onBook : null}
+                    />
+                  );
+                })}
             </div>
           )}
         </>
@@ -520,20 +530,16 @@ export function PlanTripPage() {
     );
   }
 
-  /* strip currency symbols, units, commas before parsing */
-  const n = (v) => parseFloat(String(v ?? "0").replace(/[^0-9.]/g, "")) || 0;
-
   /* ── Book a specific transport option ── */
   const handleBook = (opt) => {
     selectTransport({
       id:        (opt.option ?? "").toLowerCase().replace(/\s+/g, "-"),
       title:     opt.option,
-      mode:      opt.option,
-      type:      "commute",
-      emissions: n(opt.co2_per_person),
-      price:     n(opt.cost_per_person),
-      totalCost: n(opt.total_cost),
-      totalCO2:  n(opt.total_co2),
+      type:      "Commute",
+      emissions: parseFloat(opt.co2_per_person) || 0,
+      price:     parseFloat(opt.cost_per_person) || 0,
+      totalCost: parseFloat(opt.total_cost) || 0,
+      totalCO2:  parseFloat(opt.total_co2) || 0,
     });
     navigate("/activities");
   };
@@ -689,9 +695,7 @@ export function PlanTripPage() {
           </p>
           <button
             onClick={() => {
-              const commuteStep = plan.itinerary?.find(
-                (s) => s.type === "Commute" || s.type === "commute"
-              );
+              const commuteStep = plan.itinerary?.find((s) => s.type === "Commute");
               if (commuteStep) {
                 handleBook({
                   option:          commuteStep.chosen_option,

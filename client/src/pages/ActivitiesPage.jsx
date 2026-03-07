@@ -730,8 +730,6 @@ export function ActivitiesPage() {
     fetchActivities("all");
   }, [hasTrip]); // eslint-disable-line react-hooks-exhaustive-deps
 
-  /* 3-minute auto-reset: after a trip is booked and this page is visited,
-     revert to the global discovery view to encourage planning the next trip. */
   useEffect(() => {
     if (!hasTrip) {
       setTripFilterExpired(false);
