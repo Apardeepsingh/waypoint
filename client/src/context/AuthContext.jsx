@@ -57,6 +57,7 @@ export function AuthProvider({ children }) {
     saveUserProfile(id, profile);
     saveAccounts([...accounts, { id, email: trimmedEmail }]);
     setActiveUserId(id);
+    window.dispatchEvent(new Event("waypoint_user_changed"));
 
     /* Strip hash before exposing to UI */
     const safe = publicProfile(profile);
@@ -86,6 +87,7 @@ export function AuthProvider({ children }) {
     }
 
     setActiveUserId(account.id);
+    window.dispatchEvent(new Event("waypoint_user_changed"));
     const safe = publicProfile(profile);
     setUser(safe);
     return safe;

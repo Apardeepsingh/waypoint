@@ -300,41 +300,59 @@ export function MyTripPage() {
     { label: "Accommodation", value: +(totalCO2 * 0.15).toFixed(1), icon: "🏨", pct: 15, color: "#a7f3d0" },
   ];
 
-  /* Build day-by-day from AI or synthesise from known data */
-  const buildFallbackDays = () => {
-    const days = [];
-    for (let i = 0; i < Math.min(nights, 4); i++) {
-      const dayActs = activities.slice(i * 2, i * 2 + 2);
-      days.push({
-        day:  `Day ${i + 1}`,
-        date: departure ? fmtDate(new Date(new Date(departure).getTime() + i * 86400000)) : `Day ${i + 1}`,
-        items: [
-          i === 0 && transport ? {
-            time: transport.departure ?? "08:00",
-            label: `${transport.company} – ${from} → ${to}`,
-            detail: `${transport.duration} · £${transport.price}/person`,
-            Icon: TRANSPORT_ICONS[transport.type] ?? CheckCircle2,
-            eco: (transport.ecoScore ?? 50) >= 60,
-          } : null,
-          i === 0 ? { time: "13:00", label: `Check in – Eco Accommodation in ${to}`, detail: `Green certified · £${Math.round(accommodationCost / Math.max(nights, 1))}/night`, Icon: MapPin, eco: true } : null,
-          ...dayActs.map((a) => ({
-            time: i === 0 ? "15:00" : "10:00",
-            label: a.title,
-            detail: `${a.duration ?? "2–3 hours"} · ${a.price === 0 ? "Free" : `£${a.price}/person`}`,
-            Icon: CheckCircle2,
-            eco: true,
-          })),
-          { time: "19:30", label: `Dinner – Local Seasonal Restaurant`, detail: `Plant-forward menu · ~£${Math.round(foodCost / (nights * travelers))}/person`, Icon: CheckCircle2, eco: true },
-        ].filter(Boolean),
+  /* Build 3 fixed days from only what the user actually selected.
+     Day 1 gets the transport + check-in; all days get a slice of
+     the user's chosen activities. Nothing fake is ever injected. */
+  const buildDynamicDays = () => {
+    const NUM_DAYS  = 3;
+    const actsPerDay = Math.max(1, Math.ceil(activities.length / NUM_DAYS));
+    return Array.from({ length: NUM_DAYS }, (_, i) => {
+      const dayActs = activities.slice(i * actsPerDay, (i + 1) * actsPerDay);
+      const dayDate = departure
+        ? fmtDate(new Date(new Date(departure).getTime() + i * 86400000))
+        : `Day ${i + 1}`;
+
+      const items = [];
+
+      if (i === 0 && transport) {
+        const TIcon = TRANSPORT_ICONS[transport.type] ?? CheckCircle2;
+        items.push({
+          time:   transport.departure ?? "08:00",
+          label:  `${transport.company ?? ""} – ${from} → ${to}`,
+          detail: `${transport.duration ?? ""} · £${transport.price}/person`,
+          Icon:   TIcon,
+          eco:    (transport.ecoScore ?? 50) >= 60,
+        });
+        items.push({
+          time:   "13:00",
+          label:  `Check in – Eco Accommodation, ${to}`,
+          detail: `Green certified · £${Math.round(accommodationCost / Math.max(nights, 1))}/night`,
+          Icon:   MapPin,
+          eco:    true,
+        });
+      }
+
+      dayActs.forEach((a, j) => {
+        const times = ["10:00", "14:00", "17:00"];
+        items.push({
+          time:   i === 0 ? ["15:00", "17:30"][j] ?? "15:00" : times[j] ?? "10:00",
+          label:  a.title,
+          detail: `${a.duration ?? "2–3 hours"} · ${a.price === 0 ? "Free" : `£${a.price}/person`}`,
+          Icon:   CheckCircle2,
+          eco:    true,
+          actId:  a.id,
+        });
       });
-    }
-    return days;
+
+      return { day: `Day ${i + 1}`, date: dayDate, items, hasActivities: dayActs.length > 0 };
+    });
   };
 
   const displayDays = itinerary?.days?.length
     ? itinerary.days.map((d) => ({
-        day:   d.day,
-        date:  d.date_label ?? d.date ?? "",
+        day:           d.day,
+        date:          d.date_label ?? d.date ?? "",
+        hasActivities: true,
         items: d.items.map((item) => ({
           time:   item.time,
           label:  item.label,
@@ -343,7 +361,7 @@ export function MyTripPage() {
           eco:    item.eco !== false,
         })),
       }))
-    : buildFallbackDays();
+    : buildDynamicDays();
 
   const [activeTab,       setActiveTab]       = useState("itinerary");
   const [selectedOffset,  setSelectedOffset]  = useState(null);
@@ -476,6 +494,9 @@ export function MyTripPage() {
           </div>
         )}
 
+        {/* ── All content below is only shown once a trip is booked ── */}
+        {hasTrip && (<>
+
         {/* Tab nav */}
         <div style={{
           display: "inline-flex",
@@ -560,6 +581,29 @@ export function MyTripPage() {
 
                   {/* Timeline items */}
                   <div style={{ padding: "0.5rem 1rem 0.75rem" }}>
+                    {/* Empty day — prompt to add activities */}
+                    {day.items.length === 0 && (
+                      <div style={{
+                        display: "flex", flexDirection: "column", alignItems: "center",
+                        gap: "0.5rem", padding: "1.5rem 1rem", textAlign: "center",
+                      }}>
+                        <span style={{ fontSize: "1.5rem" }}>📍</span>
+                        <p style={{ fontSize: "0.82rem", color: "#9ca3af", fontFamily: "'Inter',sans-serif" }}>
+                          No activities planned for this day yet
+                        </p>
+                        <button
+                          onClick={() => navigate("/activities")}
+                          style={{
+                            fontSize: "0.78rem", fontWeight: 600, color: "#2d7a4f",
+                            background: "#e8f5ee", border: "1px solid #bbf7d0",
+                            borderRadius: "9999px", padding: "0.3rem 0.875rem",
+                            cursor: "pointer", fontFamily: "'Inter',sans-serif",
+                          }}
+                        >
+                          + Add Activities
+                        </button>
+                      </div>
+                    )}
                     {day.items.map((item, idx) => {
                       const { Icon } = item;
                       const isLast = idx === day.items.length - 1;
@@ -908,6 +952,9 @@ export function MyTripPage() {
             </div>
           </div>
         )}
+
+        {/* ── Close hasTrip wrapper ── */}
+        </>)}
 
         {/* ══════════════════════════════════════
             CTA BANNER
