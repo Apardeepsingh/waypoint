@@ -206,6 +206,19 @@ const CITY_ACTIVITIES = {
   ],
 };
 
+/* Curated multi-city showcase for browse mode (no trip booked).
+   2 activities per city — deduplicated, one per category where possible. */
+const GENERAL_SHOWCASE = (() => {
+  const seen = new Set();
+  return Object.values(CITY_ACTIVITIES).flatMap((acts) =>
+    acts.filter((a) => {
+      if (seen.has(a.id)) return false;
+      seen.add(a.id);
+      return true;
+    }).slice(0, 2)
+  );
+})();
+
 const ACTIVITIES = [
   {
     id: 1,
@@ -311,7 +324,7 @@ const CATEGORIES = [
 /* ─────────────────────────────────────────
    ACTIVITY CARD
 ───────────────────────────────────────── */
-function ActivityCard({ activity, isSelected, isWishlisted, onSelect, onWishlist }) {
+function ActivityCard({ activity, isSelected, isWishlisted, onSelect, onWishlist, canSelect = true }) {
   const Icon = activity.Icon ?? MapPin;
   const priceLabel = activity.price === 0 ? "Free" : `£${activity.price}`;
   const co2Label = activity.emissions === 0 ? "Zero kg CO₂" : `${activity.emissions} kg CO₂`;
@@ -513,32 +526,47 @@ function ActivityCard({ activity, isSelected, isWishlisted, onSelect, onWishlist
           </div>
         </div>
 
-        {/* Add to Itinerary button */}
-        <button
-          onClick={() => onSelect(activity.id)}
-          style={{
-            width: "100%",
-            padding: "0.7rem",
-            borderRadius: "0.875rem",
-            border: `2px solid ${isSelected ? "#2d7a4f" : "#4aab74"}`,
-            background: isSelected ? "#2d7a4f" : "transparent",
-            color: isSelected ? "#fff" : "#2d7a4f",
-            fontSize: "0.875rem",
-            fontWeight: 600,
-            cursor: "pointer",
+        {/* Add to Itinerary button — locked in browse mode */}
+        {canSelect ? (
+          <button
+            onClick={() => onSelect(activity.id)}
+            style={{
+              width: "100%",
+              padding: "0.7rem",
+              borderRadius: "0.875rem",
+              border: `2px solid ${isSelected ? "#2d7a4f" : "#4aab74"}`,
+              background: isSelected ? "#2d7a4f" : "transparent",
+              color: isSelected ? "#fff" : "#2d7a4f",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "'Inter',sans-serif",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.4rem",
+              transition: "background 0.15s, color 0.15s",
+            }}
+          >
+            {isSelected
+              ? <><CheckCircle2 style={{ width: "1rem", height: "1rem" }} /> Added to Itinerary</>
+              : <><Plus style={{ width: "1rem", height: "1rem" }} /> Add to Itinerary</>
+            }
+          </button>
+        ) : (
+          <div style={{
+            width: "100%", padding: "0.7rem",
+            borderRadius: "0.875rem", border: "2px dashed #d1d5db",
+            background: "#f9fafb", color: "#9ca3af",
+            fontSize: "0.8rem", fontWeight: 600,
             fontFamily: "'Inter',sans-serif",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "0.4rem",
-            transition: "background 0.15s, color 0.15s",
-          }}
-        >
-          {isSelected
-            ? <><CheckCircle2 style={{ width: "1rem", height: "1rem" }} /> Added to Itinerary</>
-            : <><Plus style={{ width: "1rem", height: "1rem" }} /> Add to Itinerary</>
-          }
-        </button>
+            display: "flex", alignItems: "center",
+            justifyContent: "center", gap: "0.4rem",
+            boxSizing: "border-box",
+          }}>
+            🔒 Book a trip to add
+          </div>
+        )}
       </div>
     </div>
   );
@@ -551,14 +579,20 @@ export function ActivitiesPage() {
   const navigate = useNavigate();
   const { trip, toggleActivity } = useTrip();
 
-  const destination = trip.to || "Paris";  // use trip destination or fallback
+  /* "Trip booked" = user has searched a destination */
+  const hasTrip     = !!(trip.to);
+  const destination = trip.to || "";
 
   const [activeCategory, setActiveCategory] = useState("all");
-  const [activities,     setActivities]      = useState(ACTIVITIES); // start with static
-  const [loading,        setLoading]          = useState(false);
-  const [dataSource,     setDataSource]       = useState("static"); // "static"|"places"|"ai"
-  const [loadError,      setLoadError]        = useState("");
-  const [wishlistIds,    setWishlistIds]       = useState(
+  const [activities,     setActivities]      = useState(() => {
+    if (!hasTrip) return GENERAL_SHOWCASE;
+    const cityKey  = destination.trim().toLowerCase();
+    return CITY_ACTIVITIES[cityKey] ?? ACTIVITIES;
+  });
+  const [loading,     setLoading]     = useState(false);
+  const [dataSource,  setDataSource]  = useState(hasTrip ? "static" : "general");
+  const [loadError,   setLoadError]   = useState("");
+  const [wishlistIds, setWishlistIds] = useState(
     () => trip.savedActivities.map((a) => a.id)
   );
 
@@ -626,18 +660,38 @@ export function ActivitiesPage() {
     }
   }, [destination]);
 
-  /* Always fetch on mount and when destination/category changes */
+  /* On mount / destination change:
+     - No trip → show general showcase (no API call)
+     - Trip booked + city in local data → show static data (no API call)
+     - Trip booked + city NOT in local data → fall back to AI */
   useEffect(() => {
-    fetchActivities(activeCategory);
-  }, [destination]); // eslint-disable-line react-hooks/exhaustive-deps
+    setActiveCategory("all");
+    if (!trip.to) {
+      setActivities(GENERAL_SHOWCASE);
+      setDataSource("general");
+      setLoading(false);
+      return;
+    }
+    const cityKey  = trip.to.trim().toLowerCase();
+    const cityData = CITY_ACTIVITIES[cityKey];
+    if (cityData && cityData.length > 0) {
+      setActivities(cityData);
+      setDataSource("static");
+      setLoading(false);
+    } else {
+      fetchActivities("all");
+    }
+  }, [trip.to]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCategoryChange = (cat) => {
     setActiveCategory(cat);
+    /* For static/general data, filter client-side — no API call needed */
+    if (dataSource === "static" || dataSource === "general") return;
     fetchActivities(cat);
   };
 
-  /* Filter client-side only when using static data */
-  const filtered = (activeCategory === "all" || dataSource !== "static")
+  /* Filter client-side for static and general data */
+  const filtered = (activeCategory === "all" || (dataSource !== "static" && dataSource !== "general"))
     ? activities
     : activities.filter((a) => a.category === activeCategory);
 
@@ -680,8 +734,13 @@ export function ActivitiesPage() {
             <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.5rem" }}>
               <MapPin style={{ width: "0.875rem", height: "0.875rem", color: "rgba(255,255,255,0.65)" }} />
               <span style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.65)", fontFamily: "'Inter',sans-serif" }}>
-                {destination}{trip.departure ? ` · ${new Date(trip.departure).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}
-                {trip.travelers ? ` · ${trip.travelers} Traveller${trip.travelers > 1 ? "s" : ""}` : ""}
+                {hasTrip
+                  ? <>
+                      {destination}
+                      {trip.departure ? ` · ${new Date(trip.departure).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+                      {trip.travelers ? ` · ${trip.travelers} Traveller${trip.travelers > 1 ? "s" : ""}` : ""}
+                    </>
+                  : "Worldwide · Discovery Mode"}
               </span>
             </div>
             <h1 style={{
@@ -692,10 +751,12 @@ export function ActivitiesPage() {
               lineHeight: 1.15,
               marginBottom: "0.375rem",
             }}>
-              Activities &amp; Experiences
+              {hasTrip ? "Activities & Experiences" : "Explore Activities Worldwide"}
             </h1>
             <p style={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.72)", fontFamily: "'Inter',sans-serif" }}>
-              Curated eco-friendly experiences in {destination}
+              {hasTrip
+                ? `Curated eco-friendly experiences in ${destination}`
+                : "Browse global eco-spots · Book a trip to start building your itinerary"}
             </p>
           </div>
 
@@ -776,6 +837,39 @@ export function ActivitiesPage() {
           })}
         </div>
 
+        {/* ── Discovery mode banner (no trip booked) ── */}
+        {!hasTrip && (
+          <div style={{
+            display: "flex", alignItems: "flex-start", gap: "1rem",
+            padding: "1.125rem 1.5rem", borderRadius: "1rem",
+            background: "linear-gradient(135deg,#fffbeb,#fef3c7)",
+            border: "1px solid #fde68a", marginBottom: "1.25rem",
+          }}>
+            <span style={{ fontSize: "1.5rem", flexShrink: 0, lineHeight: 1 }}>🌍</span>
+            <div>
+              <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#92400e", fontFamily: "'Inter',sans-serif", margin: "0 0 0.25rem" }}>
+                You're in Discovery Mode
+              </p>
+              <p style={{ fontSize: "0.82rem", color: "#78350f", fontFamily: "'Inter',sans-serif", lineHeight: 1.6, margin: "0 0 0.625rem" }}>
+                Browsing global eco-activities from cities worldwide. <strong>Book a trip</strong> on the Home page to unlock your destination's spots and add them to your personal itinerary.
+              </p>
+              <button
+                onClick={() => navigate("/")}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "0.4rem",
+                  padding: "0.5rem 1.125rem", borderRadius: "0.625rem",
+                  border: "none", background: "#d97706", color: "#fff",
+                  fontSize: "0.8rem", fontWeight: 700, cursor: "pointer",
+                  fontFamily: "'Inter',sans-serif",
+                }}
+              >
+                <ArrowRight style={{ width: "0.875rem", height: "0.875rem" }} />
+                Plan a Trip Now
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── Eco Notice Banner ── */}
         <div style={{
           display: "flex",
@@ -799,7 +893,13 @@ export function ActivitiesPage() {
           {loading && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 0.875rem", borderRadius: "9999px", background: "#e8f5ee", border: "1px solid #bbf7d0" }}>
               <Loader2 style={{ width: "0.875rem", height: "0.875rem", color: "#2d7a4f", animation: "spin 1s linear infinite" }} />
-              <span style={{ fontSize: "0.78rem", color: "#166534", fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Finding activities in {destination}…</span>
+              <span style={{ fontSize: "0.78rem", color: "#166534", fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Finding activities in {destination || "all cities"}…</span>
+            </div>
+          )}
+          {!loading && dataSource === "general" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.75rem", borderRadius: "9999px", background: "#fffbeb", border: "1px solid #fde68a" }}>
+              <span style={{ fontSize: "0.75rem" }}>🌍</span>
+              <span style={{ fontSize: "0.72rem", color: "#92400e", fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Global showcase · Discovery Mode</span>
             </div>
           )}
           {!loading && dataSource === "places" && (
@@ -852,38 +952,52 @@ export function ActivitiesPage() {
               isWishlisted={wishlistIds.includes(activity.id)}
               onSelect={(id) => toggleSelect(activity)}
               onWishlist={(id) => toggleWishlist(activity)}
+              canSelect={hasTrip}
             />
           ))}
         </div>
 
         {/* ── CTA ── */}
         <div style={{ textAlign: "center" }}>
-          <button
-            onClick={() => navigate("/my-trip")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.625rem",
-              padding: "1rem 2.5rem",
-              borderRadius: "9999px",
-              border: "none",
-              background: "#2d7a4f",
-              color: "#fff",
-              fontSize: "1rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "'Inter',sans-serif",
-              boxShadow: "0 8px 25px rgba(45,122,79,0.32)",
-              transition: "transform 0.15s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
-            onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-          >
-            {selectedIds.length > 0
-              ? <><CheckCircle2 style={{ width: "1.25rem", height: "1.25rem" }} /> View Trip Summary ({selectedIds.length} activities) <ArrowRight style={{ width: "1.25rem", height: "1.25rem" }} /></>
-              : <>Continue to Summary <ArrowRight style={{ width: "1.25rem", height: "1.25rem" }} /></>
-            }
-          </button>
+          {hasTrip ? (
+            <button
+              onClick={() => navigate("/my-trip")}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: "0.625rem",
+                padding: "1rem 2.5rem", borderRadius: "9999px",
+                border: "none", background: "#2d7a4f", color: "#fff",
+                fontSize: "1rem", fontWeight: 700, cursor: "pointer",
+                fontFamily: "'Inter',sans-serif",
+                boxShadow: "0 8px 25px rgba(45,122,79,0.32)",
+                transition: "transform 0.15s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+            >
+              {selectedIds.length > 0
+                ? <><CheckCircle2 style={{ width: "1.25rem", height: "1.25rem" }} /> View Trip Summary ({selectedIds.length} activities) <ArrowRight style={{ width: "1.25rem", height: "1.25rem" }} /></>
+                : <>Continue to My Trip <ArrowRight style={{ width: "1.25rem", height: "1.25rem" }} /></>
+              }
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate("/")}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: "0.625rem",
+                padding: "1rem 2.5rem", borderRadius: "9999px",
+                border: "none", background: "#d97706", color: "#fff",
+                fontSize: "1rem", fontWeight: 700, cursor: "pointer",
+                fontFamily: "'Inter',sans-serif",
+                boxShadow: "0 8px 25px rgba(217,119,6,0.32)",
+                transition: "transform 0.15s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+            >
+              <ArrowRight style={{ width: "1.25rem", height: "1.25rem" }} />
+              Plan a Trip to Unlock Activities
+            </button>
+          )}
         </div>
         {/* Responsive: 2-col on medium, 1-col on small */}
         <style>{`
