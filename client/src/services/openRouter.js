@@ -210,6 +210,64 @@ Return JSON:
 }
 
 /* ═══════════════════════════════════════════════════════════
+   5. REAL-TIME CARBON CALCULATOR
+   Called from SustainabilityPage calculator tab.
+═══════════════════════════════════════════════════════════ */
+export async function calculateCarbonRealtime({ distanceKm, vehicleType, passengers, fuelType, userInstruction }) {
+  const fuelLabel = fuelType === "electric" ? "electric-powered" : fuelType === "hybrid" ? "hybrid (petrol+electric)" : "petrol/diesel-powered";
+
+  const prompt = `
+Calculate the real carbon footprint for this journey using accurate emission factors:
+
+Journey details:
+- Vehicle: ${vehicleType} (${fuelLabel})
+- Distance: ${distanceKm} km
+- Passengers sharing the vehicle: ${passengers}
+- Fuel type: ${fuelType}
+
+Emission factor reference (grams CO₂ per km):
+- Petrol/diesel car: 171g/km total (divide by passengers for per-person)
+- Electric car: 53g/km total (divide by passengers)
+- Hybrid car: 90g/km total (divide by passengers)
+- Motorbike petrol: 115g/km total (divide by passengers)
+- Coach bus: 27g/km per person
+- Train: 14g/km per person
+- Flight (short-haul): 255g/km per person
+- Bicycle/walking: 0g/km
+
+Rating thresholds (per person):
+- "eco"      → < 30 kg CO₂ per person
+- "moderate" → 30–100 kg CO₂ per person
+- "risky"    → > 100 kg CO₂ per person
+
+${userInstruction ? `User question/instruction: "${userInstruction}"` : ""}
+
+Return ONLY this JSON:
+{
+  "total_co2_kg": 42.5,
+  "co2_per_person_kg": 21.25,
+  "rating": "eco",
+  "rating_label": "Good Eco Impact",
+  "rating_reason": "One sentence explaining why this rating was given for this specific journey",
+  "breakdown": "e.g. 171g/km × 250km ÷ 4 passengers = 10.7 kg CO₂",
+  "equivalent": "e.g. leaving a 55W TV on for 216 hours",
+  "trees_to_offset": 2,
+  "eco_alternatives": [
+    "Switch to train on this route — saves ~72% carbon",
+    "One more realistic alternative"
+  ],
+  "reduction_tips": [
+    "Specific actionable tip for this exact vehicle and fuel type",
+    "Second tip",
+    "Third tip"
+  ],
+  "user_answer": "${userInstruction ? "Direct, specific answer to the user question above" : ""}"
+}`;
+
+  return ask(prompt);
+}
+
+/* ═══════════════════════════════════════════════════════════
    4. DAY-BY-DAY ITINERARY
    Called from MyTripPage to generate a real itinerary.
 ═══════════════════════════════════════════════════════════ */

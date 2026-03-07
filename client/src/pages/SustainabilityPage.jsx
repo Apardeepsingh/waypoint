@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useTrip } from "../context/TripContext";
 import logoImg from "../assets/Untitled_Artwork.png";
-import { getEcoTips, analyzeRoute } from "../services/openRouter";
+import { getEcoTips, analyzeRoute, calculateCarbonRealtime } from "../services/openRouter";
 
 /* ─────────────────────────────────────────
    CONSTANTS
@@ -125,6 +125,20 @@ const TABS = [
   { id: "tips",   label: "💡 Eco Travel Tips" },
   { id: "data",   label: "🌍 Global Data" },
   { id: "ai",     label: "✦ AI Carbon Analysis" },
+  { id: "calc",   label: "⚡ Calculate with AI" },
+];
+
+const VEHICLE_OPTS = [
+  { id: "car",       label: "Car",       emoji: "🚗" },
+  { id: "bus",       label: "Bus",       emoji: "🚌" },
+  { id: "train",     label: "Train",     emoji: "🚄" },
+  { id: "flight",    label: "Flight",    emoji: "✈️" },
+  { id: "motorbike", label: "Motorbike", emoji: "🏍️" },
+];
+const FUEL_OPTS = [
+  { id: "petrol",   label: "Petrol / Diesel", emoji: "⛽" },
+  { id: "electric", label: "Electric",        emoji: "⚡" },
+  { id: "hybrid",   label: "Hybrid",          emoji: "🔋" },
 ];
 
 const STATS = [
@@ -212,6 +226,14 @@ export function SustainabilityPage() {
   const [carbonError,    setCarbonError]    = useState("");
   const [carbonFetched,  setCarbonFetched]  = useState(false);
 
+  /* Real-time AI Calculator tab */
+  const [calcInputs, setCalcInputs] = useState({
+    distance: "", vehicle: "car", passengers: 1, fuelType: "petrol", instruction: "",
+  });
+  const [calcResult,  setCalcResult]  = useState(null);
+  const [calcLoading, setCalcLoading] = useState(false);
+  const [calcError,   setCalcError]   = useState("");
+
   /* Shared fetch function — callable on first open AND on retry */
   const fetchCarbonAnalysis = () => {
     setCarbonFetched(true);
@@ -240,6 +262,25 @@ export function SustainabilityPage() {
     if (id === "ai" && !carbonFetched) {
       fetchCarbonAnalysis();
     }
+  };
+
+  const runCalc = () => {
+    const km  = parseFloat(calcInputs.distance);
+    const pax = parseInt(calcInputs.passengers, 10);
+    if (!km || km <= 0 || !pax || pax < 1) return;
+    setCalcLoading(true);
+    setCalcError("");
+    setCalcResult(null);
+    calculateCarbonRealtime({
+      distanceKm:      km,
+      vehicleType:     calcInputs.vehicle,
+      passengers:      pax,
+      fuelType:        calcInputs.fuelType,
+      userInstruction: calcInputs.instruction.trim(),
+    })
+      .then(setCalcResult)
+      .catch((err) => setCalcError(err.message ?? "failed"))
+      .finally(() => setCalcLoading(false));
   };
 
   useEffect(() => {
@@ -1109,6 +1150,454 @@ export function SustainabilityPage() {
         )}
 
         {/* ══════════════════════════════════════
+            CALCULATE WITH AI TAB
+           ══════════════════════════════════════ */}
+        {activeTab === "calc" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+
+            {/* ── Header ── */}
+            <div style={{
+              borderRadius: "1.5rem", overflow: "hidden",
+              boxShadow: "0 8px 32px rgba(45,122,79,0.2)",
+            }}>
+              <div style={{
+                background: "linear-gradient(135deg,#0f2318 0%,#1a3a2a 55%,#2d7a4f 100%)",
+                padding: "1.75rem 2rem",
+                display: "flex", alignItems: "center", gap: "1.25rem",
+              }}>
+                <div style={{
+                  width: "3rem", height: "3rem", borderRadius: "50%",
+                  background: "rgba(134,239,172,0.15)", border: "1px solid rgba(134,239,172,0.3)",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  <Sparkles style={{ width: "1.25rem", height: "1.25rem", color: "#86efac" }} />
+                </div>
+                <div>
+                  <p style={{ fontSize: "0.62rem", color: "rgba(134,239,172,0.7)", letterSpacing: "0.14em", fontWeight: 700, fontFamily: "'Inter',sans-serif", margin: "0 0 0.25rem" }}>
+                    ⚡ REAL-TIME AI CARBON CALCULATOR
+                  </p>
+                  <p style={{ fontSize: "1rem", fontWeight: 700, color: "#fff", fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                    Enter your journey details — AI calculates your exact footprint
+                  </p>
+                  <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.55)", fontFamily: "'Inter',sans-serif", margin: "0.2rem 0 0" }}>
+                    Get your carbon rating, offset plan, and personalised reduction tips instantly
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Input Form ── */}
+            <div style={{
+              background: "#fff", borderRadius: "1.25rem",
+              border: "1px solid #e5e7eb", padding: "1.75rem 2rem",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+            }}>
+
+              {/* Row 1: Distance + Passengers */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", marginBottom: "1.5rem" }}>
+
+                {/* Distance */}
+                <div>
+                  <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#374151", letterSpacing: "0.07em", display: "block", marginBottom: "0.5rem", fontFamily: "'Inter',sans-serif" }}>
+                    TOTAL DISTANCE (KM) <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="number" min="1" placeholder="e.g. 350"
+                      value={calcInputs.distance}
+                      onChange={(e) => setCalcInputs(p => ({ ...p, distance: e.target.value }))}
+                      style={{
+                        width: "100%", padding: "0.875rem 1rem 0.875rem 1rem",
+                        borderRadius: "0.75rem", border: "2px solid #e5e7eb",
+                        fontSize: "1rem", fontFamily: "'Inter',sans-serif", fontWeight: 600,
+                        outline: "none", boxSizing: "border-box", color: "#1f2937",
+                        transition: "border-color 0.15s",
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = "#2d7a4f")}
+                      onBlur={(e) => (e.target.style.borderColor = "#e5e7eb")}
+                    />
+                    <span style={{
+                      position: "absolute", right: "0.875rem", top: "50%", transform: "translateY(-50%)",
+                      fontSize: "0.75rem", fontWeight: 600, color: "#9ca3af", fontFamily: "'Inter',sans-serif",
+                    }}>km</span>
+                  </div>
+                </div>
+
+                {/* Passengers */}
+                <div>
+                  <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#374151", letterSpacing: "0.07em", display: "block", marginBottom: "0.5rem", fontFamily: "'Inter',sans-serif" }}>
+                    PASSENGERS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <button
+                      onClick={() => setCalcInputs(p => ({ ...p, passengers: Math.max(1, p.passengers - 1) }))}
+                      style={{
+                        width: "2.75rem", height: "2.75rem", borderRadius: "0.75rem",
+                        border: "2px solid #e5e7eb", background: "#f9fafb",
+                        fontSize: "1.25rem", cursor: "pointer", display: "flex",
+                        alignItems: "center", justifyContent: "center", color: "#374151",
+                        flexShrink: 0,
+                      }}
+                    >−</button>
+                    <div style={{
+                      flex: 1, textAlign: "center", padding: "0.875rem",
+                      borderRadius: "0.75rem", border: "2px solid #e5e7eb",
+                      background: "#f9fafb",
+                    }}>
+                      <span style={{ fontSize: "1.25rem", fontWeight: 800, color: "#1f2937", fontFamily: "'Inter',sans-serif" }}>
+                        {calcInputs.passengers}
+                      </span>
+                      <span style={{ fontSize: "0.72rem", color: "#9ca3af", fontFamily: "'Inter',sans-serif", display: "block", marginTop: "0.1rem" }}>
+                        {calcInputs.passengers === 1 ? "person" : "people"}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setCalcInputs(p => ({ ...p, passengers: Math.min(50, p.passengers + 1) }))}
+                      style={{
+                        width: "2.75rem", height: "2.75rem", borderRadius: "0.75rem",
+                        border: "2px solid #e5e7eb", background: "#f9fafb",
+                        fontSize: "1.25rem", cursor: "pointer", display: "flex",
+                        alignItems: "center", justifyContent: "center", color: "#374151",
+                        flexShrink: 0,
+                      }}
+                    >+</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vehicle Type */}
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#374151", letterSpacing: "0.07em", display: "block", marginBottom: "0.625rem", fontFamily: "'Inter',sans-serif" }}>
+                  VEHICLE TYPE <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.625rem" }}>
+                  {VEHICLE_OPTS.map((v) => {
+                    const sel = calcInputs.vehicle === v.id;
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => setCalcInputs(p => ({ ...p, vehicle: v.id }))}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "0.5rem",
+                          padding: "0.625rem 1rem", borderRadius: "0.875rem",
+                          border: `2px solid ${sel ? "#2d7a4f" : "#e5e7eb"}`,
+                          background: sel ? "#f0fdf4" : "#f9fafb",
+                          cursor: "pointer", fontSize: "0.85rem", fontWeight: sel ? 700 : 500,
+                          color: sel ? "#166534" : "#374151",
+                          fontFamily: "'Inter',sans-serif",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        <span style={{ fontSize: "1.1rem" }}>{v.emoji}</span>
+                        {v.label}
+                        {sel && <span style={{ fontSize: "0.65rem", color: "#16a34a", fontWeight: 700 }}>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Fuel Type */}
+              <div style={{ marginBottom: "1.75rem" }}>
+                <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#374151", letterSpacing: "0.07em", display: "block", marginBottom: "0.625rem", fontFamily: "'Inter',sans-serif" }}>
+                  FUEL / ENERGY TYPE <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <div style={{ display: "flex", gap: "0.625rem", flexWrap: "wrap" }}>
+                  {FUEL_OPTS.map((f) => {
+                    const sel = calcInputs.fuelType === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => setCalcInputs(p => ({ ...p, fuelType: f.id }))}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "0.5rem",
+                          padding: "0.625rem 1.25rem", borderRadius: "0.875rem",
+                          border: `2px solid ${sel ? "#2d7a4f" : "#e5e7eb"}`,
+                          background: sel ? "#f0fdf4" : "#f9fafb",
+                          cursor: "pointer", fontSize: "0.85rem", fontWeight: sel ? 700 : 500,
+                          color: sel ? "#166534" : "#374151",
+                          fontFamily: "'Inter',sans-serif",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        <span style={{ fontSize: "1rem" }}>{f.emoji}</span>
+                        {f.label}
+                        {sel && <span style={{ fontSize: "0.65rem", color: "#16a34a", fontWeight: 700 }}>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Optional instruction */}
+              <div style={{ marginBottom: "1.75rem" }}>
+                <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#374151", letterSpacing: "0.07em", display: "block", marginBottom: "0.5rem", fontFamily: "'Inter',sans-serif" }}>
+                  ASK AI ANYTHING <span style={{ fontSize: "0.65rem", color: "#9ca3af", fontWeight: 500, letterSpacing: 0 }}>(optional)</span>
+                </label>
+                <p style={{ fontSize: "0.75rem", color: "#6b7280", fontFamily: "'Inter',sans-serif", margin: "0 0 0.5rem" }}>
+                  e.g. "How can I reduce my carbon on this journey?" · "What eco alternatives exist?" · "How many solar panels would offset this?"
+                </p>
+                <textarea
+                  rows={3}
+                  placeholder="Type your instruction or question here…"
+                  value={calcInputs.instruction}
+                  onChange={(e) => setCalcInputs(p => ({ ...p, instruction: e.target.value }))}
+                  style={{
+                    width: "100%", padding: "0.875rem 1rem",
+                    borderRadius: "0.875rem", border: "2px solid #e5e7eb",
+                    fontSize: "0.875rem", fontFamily: "'Inter',sans-serif",
+                    outline: "none", resize: "vertical", color: "#374151",
+                    boxSizing: "border-box", lineHeight: 1.6,
+                    transition: "border-color 0.15s",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#2d7a4f")}
+                  onBlur={(e) => (e.target.style.borderColor = "#e5e7eb")}
+                />
+              </div>
+
+              {/* Calculate button */}
+              <button
+                onClick={runCalc}
+                disabled={calcLoading || !calcInputs.distance || calcInputs.distance <= 0}
+                style={{
+                  width: "100%", padding: "1rem", borderRadius: "0.875rem",
+                  border: "none",
+                  background: calcLoading || !calcInputs.distance
+                    ? "#d1fae5"
+                    : "linear-gradient(135deg,#1a3a2a,#2d7a4f)",
+                  color: calcLoading || !calcInputs.distance ? "#6b7280" : "#fff",
+                  fontSize: "1rem", fontWeight: 700, cursor: calcLoading || !calcInputs.distance ? "not-allowed" : "pointer",
+                  fontFamily: "'Inter',sans-serif",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "0.625rem",
+                  boxShadow: calcLoading || !calcInputs.distance ? "none" : "0 6px 20px rgba(45,122,79,0.3)",
+                  transition: "all 0.2s",
+                }}
+              >
+                {calcLoading ? (
+                  <>
+                    <Loader2 style={{ width: "1.1rem", height: "1.1rem", animation: "spin 1s linear infinite" }} />
+                    AI is calculating your footprint…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles style={{ width: "1.1rem", height: "1.1rem" }} />
+                    Calculate Carbon Footprint with AI
+                  </>
+                )}
+              </button>
+
+              {calcError && (
+                <p style={{ fontSize: "0.8rem", color: "#dc2626", fontFamily: "'Inter',sans-serif", margin: "0.75rem 0 0", textAlign: "center" }}>
+                  ⚠️ {calcError.startsWith("OpenAI") ? `API error: ${calcError}` : "Something went wrong. Please try again."}
+                </p>
+              )}
+            </div>
+
+            {/* ── Results ── */}
+            {calcResult && !calcLoading && (() => {
+              const r      = calcResult;
+              const rColor = r.rating === "eco" ? "#16a34a" : r.rating === "moderate" ? "#d97706" : "#dc2626";
+              const rBg    = r.rating === "eco" ? "#f0fdf4" : r.rating === "moderate" ? "#fffbeb" : "#fef2f2";
+              const rBorder= r.rating === "eco" ? "#bbf7d0" : r.rating === "moderate" ? "#fde68a" : "#fecaca";
+              const rEmoji = r.rating === "eco" ? "🌿" : r.rating === "moderate" ? "⚡" : "🔴";
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+                  {/* Rating hero */}
+                  <div style={{
+                    borderRadius: "1.5rem", overflow: "hidden",
+                    boxShadow: `0 8px 32px ${rColor}33`,
+                    border: `2px solid ${rBorder}`,
+                  }}>
+                    <div style={{
+                      background: rBg, padding: "2rem",
+                      textAlign: "center",
+                      borderBottom: `1px solid ${rBorder}`,
+                    }}>
+                      <div style={{ fontSize: "3.5rem", lineHeight: 1, marginBottom: "0.5rem" }}>{rEmoji}</div>
+                      <p style={{ fontSize: "1.75rem", fontWeight: 900, color: rColor, fontFamily: "'Inter',sans-serif", margin: "0 0 0.375rem" }}>
+                        {r.rating_label}
+                      </p>
+                      <p style={{ fontSize: "0.875rem", color: "#6b7280", fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                        {r.rating_reason}
+                      </p>
+                    </div>
+
+                    {/* CO₂ metrics row */}
+                    <div style={{
+                      display: "grid", gridTemplateColumns: "repeat(3,1fr)",
+                      background: "#fff",
+                    }}>
+                      {[
+                        { label: "Total CO₂",     value: `${r.total_co2_kg ?? "–"} kg`,     sub: "for this journey", emoji: "💨" },
+                        { label: "Per Person",     value: `${r.co2_per_person_kg ?? "–"} kg`, sub: "per traveller",    emoji: "👤" },
+                        { label: "Trees to Offset",value: `${r.trees_to_offset ?? "–"}`,      sub: "trees needed",     emoji: "🌳" },
+                      ].map((m, i) => (
+                        <div key={i} style={{
+                          padding: "1.25rem 1rem", textAlign: "center",
+                          borderRight: i < 2 ? `1px solid ${rBorder}` : "none",
+                        }}>
+                          <div style={{ fontSize: "1.5rem", marginBottom: "0.25rem" }}>{m.emoji}</div>
+                          <p style={{ fontSize: "1.4rem", fontWeight: 900, color: rColor, fontFamily: "'Inter',sans-serif", margin: 0, lineHeight: 1 }}>
+                            {m.value}
+                          </p>
+                          <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#374151", margin: "0.25rem 0 0.1rem", fontFamily: "'Inter',sans-serif" }}>
+                            {m.label}
+                          </p>
+                          <p style={{ fontSize: "0.62rem", color: "#9ca3af", fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                            {m.sub}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Calculation breakdown */}
+                  {r.breakdown && (
+                    <div style={{
+                      background: "#f8fafc", borderRadius: "1rem",
+                      border: "1px solid #e2e8f0", padding: "1rem 1.25rem",
+                      display: "flex", gap: "0.75rem", alignItems: "flex-start",
+                    }}>
+                      <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>🧮</span>
+                      <div>
+                        <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", letterSpacing: "0.1em", margin: "0 0 0.3rem", fontFamily: "'Inter',sans-serif" }}>
+                          AI CALCULATION BREAKDOWN
+                        </p>
+                        <p style={{ fontSize: "0.85rem", color: "#374151", fontFamily: "'Courier New',monospace", margin: 0, lineHeight: 1.6 }}>
+                          {r.breakdown}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Equivalent */}
+                  {r.equivalent && (
+                    <div style={{
+                      background: "linear-gradient(135deg,#f0fdf4,#dcfce7)",
+                      borderRadius: "1rem", border: "1px solid #bbf7d0",
+                      padding: "1rem 1.25rem", display: "flex", gap: "0.75rem", alignItems: "center",
+                    }}>
+                      <span style={{ fontSize: "1.25rem", flexShrink: 0 }}>🔍</span>
+                      <div>
+                        <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#2d7a4f", letterSpacing: "0.1em", margin: "0 0 0.2rem", fontFamily: "'Inter',sans-serif" }}>
+                          THAT'S EQUIVALENT TO
+                        </p>
+                        <p style={{ fontSize: "0.9rem", color: "#166534", fontFamily: "'Inter',sans-serif", fontWeight: 600, margin: 0 }}>
+                          {r.equivalent}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Eco alternatives + tips in 2 col */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+
+                    {/* Eco alternatives */}
+                    {r.eco_alternatives?.length > 0 && (
+                      <div style={{
+                        background: "#fff", borderRadius: "1rem",
+                        border: "1px solid #bbf7d0", padding: "1.25rem",
+                        boxShadow: "0 2px 8px rgba(45,122,79,0.06)",
+                      }}>
+                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.875rem" }}>
+                          <span style={{ fontSize: "1rem" }}>🔄</span>
+                          <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#2d7a4f", letterSpacing: "0.1em", margin: 0, fontFamily: "'Inter',sans-serif" }}>
+                            ECO ALTERNATIVES
+                          </p>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          {r.eco_alternatives.map((a, i) => (
+                            <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
+                              <span style={{ fontSize: "0.8rem", color: "#16a34a", flexShrink: 0, marginTop: "0.1rem", fontWeight: 700 }}>✓</span>
+                              <p style={{ fontSize: "0.82rem", color: "#374151", fontFamily: "'Inter',sans-serif", margin: 0, lineHeight: 1.5 }}>{a}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reduction tips */}
+                    {r.reduction_tips?.length > 0 && (
+                      <div style={{
+                        background: "#fff", borderRadius: "1rem",
+                        border: "1px solid #fde68a", padding: "1.25rem",
+                        boxShadow: "0 2px 8px rgba(217,119,6,0.06)",
+                      }}>
+                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.875rem" }}>
+                          <span style={{ fontSize: "1rem" }}>💡</span>
+                          <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#b45309", letterSpacing: "0.1em", margin: 0, fontFamily: "'Inter',sans-serif" }}>
+                            REDUCTION TIPS
+                          </p>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          {r.reduction_tips.map((t, i) => (
+                            <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
+                              <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#d97706", flexShrink: 0, marginTop: "0.15rem", minWidth: "1rem" }}>{i + 1}.</span>
+                              <p style={{ fontSize: "0.82rem", color: "#374151", fontFamily: "'Inter',sans-serif", margin: 0, lineHeight: 1.5 }}>{t}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* AI answer to user instruction */}
+                  {r.user_answer && (
+                    <div style={{
+                      borderRadius: "1.25rem", overflow: "hidden",
+                      border: "1px solid rgba(134,239,172,0.4)",
+                      boxShadow: "0 4px 20px rgba(45,122,79,0.1)",
+                    }}>
+                      <div style={{
+                        background: "linear-gradient(90deg,#1a3a2a,#2d7a4f)",
+                        padding: "0.75rem 1.25rem",
+                        display: "flex", alignItems: "center", gap: "0.5rem",
+                      }}>
+                        <Sparkles style={{ width: "0.875rem", height: "0.875rem", color: "#86efac" }} />
+                        <p style={{ fontSize: "0.62rem", fontWeight: 700, color: "#86efac", letterSpacing: "0.12em", margin: 0, fontFamily: "'Inter',sans-serif" }}>
+                          AI RESPONSE TO YOUR QUESTION
+                        </p>
+                      </div>
+                      <div style={{
+                        background: "#f8fdf9", padding: "1.25rem 1.5rem",
+                        display: "flex", gap: "0.875rem", alignItems: "flex-start",
+                      }}>
+                        <div style={{
+                          width: "2rem", height: "2rem", borderRadius: "50%",
+                          background: "linear-gradient(135deg,#1a3a2a,#2d7a4f)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          flexShrink: 0,
+                        }}>
+                          <Sparkles style={{ width: "0.875rem", height: "0.875rem", color: "#86efac" }} />
+                        </div>
+                        <p style={{ fontSize: "0.9rem", color: "#166534", lineHeight: 1.7, fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                          {r.user_answer}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recalculate button */}
+                  <button
+                    onClick={() => setCalcResult(null)}
+                    style={{
+                      alignSelf: "center", padding: "0.625rem 1.75rem",
+                      borderRadius: "0.75rem", border: "2px solid #e5e7eb",
+                      background: "#fff", color: "#374151",
+                      fontSize: "0.875rem", fontWeight: 600,
+                      cursor: "pointer", fontFamily: "'Inter',sans-serif",
+                    }}
+                  >
+                    ← Edit Journey & Recalculate
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════
             CTA BANNER
            ══════════════════════════════════════ */}
         <div style={{
@@ -1211,6 +1700,7 @@ export function SustainabilityPage() {
           .sus-3col { grid-template-columns: 1fr !important; }
           .sus-stats { grid-template-columns: repeat(2,1fr) !important; }
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );
