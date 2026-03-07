@@ -787,169 +787,305 @@ export function SustainabilityPage() {
               </div>
             )}
 
-            {/* Main panel */}
+            {/* ── AI Carbon Analysis Main Panel ── */}
             {aiCarbon && !carbonLoading && (() => {
-              const insights = aiCarbon.carbon_insights;
+              const insights  = aiCarbon.carbon_insights;
+              const options   = aiCarbon.options ?? [];
               const treesSaved = insights?.trees_saved ?? Math.round((insights?.co2_saved_kg ?? 0) / 22);
               const co2SavedKg = insights?.co2_saved_kg ?? 0;
               const carKmEquiv = insights?.car_km_equivalent ?? Math.round(co2SavedKg / 0.171);
+              const savingPct  = insights?.saving_pct ?? 0;
+              const maxCo2     = Math.max(...options.map(o => o.co2_per_person ?? 0), 1);
+
+              const modeIcon   = { train: "🚄", bus: "🚌", car: "🚗", carpool: "🚗", flight: "✈️" };
+              const modeColor  = { train: "#2d7a4f", bus: "#b45309", carpool: "#ca8a04", flight: "#dc2626" };
+              const modeBg     = { train: "#f0fdf4", bus: "#fffbeb", carpool: "#fefce8", flight: "#fef2f2" };
+              const modeBorder = { train: "#bbf7d0", bus: "#fde68a", carpool: "#fef08a", flight: "#fecaca" };
+              const barColor   = (id) => ({ train: "#16a34a", bus: "#d97706", carpool: "#ca8a04", flight: "#ef4444" }[id] ?? "#6b7280");
+
               return (
-                <>
-                  {/* Header card */}
-                  <div style={{ borderRadius: "1.25rem", overflow: "hidden", boxShadow: "0 4px 24px rgba(45,122,79,0.18)", border: "1px solid #bbf7d0" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+                  {/* ─── 1. AI VERDICT BANNER ─── */}
+                  <div style={{
+                    borderRadius: "1.5rem", overflow: "hidden",
+                    boxShadow: "0 8px 32px rgba(45,122,79,0.22)",
+                    border: "1px solid rgba(134,239,172,0.3)",
+                  }}>
                     <div style={{
-                      background: "linear-gradient(135deg,#1a3a2a 0%,#2d7a4f 100%)",
-                      padding: "1.25rem 1.75rem",
-                      display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap",
+                      background: "linear-gradient(135deg,#0f2318 0%,#1a3a2a 50%,#2d7a4f 100%)",
+                      padding: "1.5rem 1.75rem",
+                      display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap",
                     }}>
-                      <Sparkles style={{ width: "1.1rem", height: "1.1rem", color: "#86efac", flexShrink: 0 }} />
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: "0.67rem", color: "rgba(255,255,255,0.55)", letterSpacing: "0.12em", fontWeight: 700, fontFamily: "'Inter',sans-serif", margin: 0 }}>
-                          OPENAI · CARBON EFFICIENCY ANALYSIS
+                      <div style={{
+                        width: "3rem", height: "3rem", borderRadius: "50%",
+                        background: "rgba(134,239,172,0.15)", border: "1px solid rgba(134,239,172,0.3)",
+                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      }}>
+                        <Sparkles style={{ width: "1.2rem", height: "1.2rem", color: "#86efac" }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: "0.62rem", color: "rgba(134,239,172,0.7)", letterSpacing: "0.14em", fontWeight: 700, fontFamily: "'Inter',sans-serif", margin: "0 0 0.25rem" }}>
+                          ✦ AI CARBON ANALYSIS REPORT · GPT-4o mini
                         </p>
-                        <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#fff", fontFamily: "'Inter',sans-serif", margin: "0.15rem 0 0" }}>
-                          {trip.distanceKm ? `~${trip.distanceKm} km` : "Multi-mode route"}
-                          {trip.selectedTransport
-                            ? ` · ${trip.selectedTransport.type || trip.selectedTransport.title || "Transport"}`
-                            : insights?.best_mode ? ` · ${insights.best_mode.charAt(0).toUpperCase() + insights.best_mode.slice(1)}` : ""}
+                        <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#fff", fontFamily: "'Inter',sans-serif", margin: 0, lineHeight: 1.4 }}>
+                          {trip.distanceKm ? `~${trip.distanceKm} km route` : "Multi-mode route"}
                           {` · ${trip.travelers ?? 2} ${(trip.travelers ?? 2) === 1 ? "person" : "persons"}`}
+                          {trip.selectedTransport ? ` · ${trip.selectedTransport.type || trip.selectedTransport.title}` : ""}
                         </p>
                       </div>
-                      <span style={{
-                        padding: "0.3rem 0.875rem", borderRadius: "9999px",
-                        background: "rgba(255,255,255,0.15)", color: "#bbf7d0",
-                        fontSize: "0.72rem", fontWeight: 700, fontFamily: "'Inter',sans-serif",
-                        border: "1px solid rgba(255,255,255,0.22)", whiteSpace: "nowrap",
+                      {savingPct > 0 && (
+                        <div style={{ textAlign: "center", flexShrink: 0 }}>
+                          <p style={{ fontSize: "2.5rem", fontWeight: 900, color: "#86efac", lineHeight: 1, fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                            {savingPct}%
+                          </p>
+                          <p style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.6)", fontFamily: "'Inter',sans-serif", margin: "0.2rem 0 0", whiteSpace: "nowrap" }}>
+                            lower carbon vs {insights?.worst_mode || "flight"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* AI-generated route summary quote */}
+                    {(aiCarbon.route_summary || insights?.headline) && (
+                      <div style={{
+                        background: "#f8fdf9", padding: "1.125rem 1.75rem",
+                        borderBottom: "1px solid #e8f5ee",
+                        display: "flex", gap: "0.875rem", alignItems: "flex-start",
                       }}>
-                        ✦ Powered by GPT-4o mini
-                      </span>
-                    </div>
-
-                    <div style={{ background: "#fff", padding: "1.75rem" }}>
-
-                      {/* Headline */}
-                      {insights?.headline && (
-                        <p style={{ fontSize: "1.05rem", fontWeight: 700, color: "#1a2e1a", marginBottom: "1.5rem", fontFamily: "'Inter',sans-serif", lineHeight: 1.5 }}>
-                          💡 {insights.headline}
-                        </p>
-                      )}
-
-                      {/* 3-stat grid */}
-                      {(treesSaved > 0 || co2SavedKg > 0 || carKmEquiv > 0) && (
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "1rem", marginBottom: "1.5rem" }}>
-                          {[
-                            { emoji: "🌳", value: treesSaved, unit: "trees",   label: "CO₂ equivalent saved",   sub: `vs ${insights?.worst_mode || "highest-carbon"} · per person`, color: "#16a34a" },
-                            { emoji: "🌿", value: co2SavedKg, unit: "kg CO₂", label: "avoided per person",      sub: `by choosing ${insights?.best_mode || "eco mode"}`,              color: "#15803d" },
-                            { emoji: "🚗", value: carKmEquiv, unit: "km",     label: "car journey equivalent",  sub: "not driven this trip",                                           color: "#166534" },
-                          ].map((s, i) => (
-                            <div key={i} style={{
-                              background: "#f0fdf4", borderRadius: "1.25rem",
-                              padding: "1.5rem", border: "1px solid #bbf7d0", textAlign: "center",
-                              boxShadow: "0 2px 8px rgba(45,122,79,0.08)",
-                            }}>
-                              <div style={{ fontSize: "2.25rem", lineHeight: 1, marginBottom: "0.5rem" }}>{s.emoji}</div>
-                              <p style={{ fontSize: "2.25rem", fontWeight: 800, color: s.color, lineHeight: 1, fontFamily: "'Inter',sans-serif", margin: 0 }}>
-                                {s.value}
-                              </p>
-                              <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#374151", margin: "0.3rem 0 0", fontFamily: "'Inter',sans-serif" }}>
-                                {s.unit}
-                              </p>
-                              <p style={{ fontSize: "0.72rem", color: "#6b7280", margin: "0.2rem 0 0", fontFamily: "'Inter',sans-serif", lineHeight: 1.4 }}>
-                                {s.label}
-                              </p>
-                              <p style={{ fontSize: "0.68rem", color: "#9ca3af", fontFamily: "'Inter',sans-serif", margin: 0 }}>
-                                {s.sub}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Comparison sentence */}
-                      {insights?.comparison_sentence && (
-                        <div style={{
-                          display: "flex", alignItems: "flex-start", gap: "0.75rem",
-                          padding: "1rem 1.25rem", background: "#e8f5ee",
-                          borderRadius: "1rem", border: "1px solid #bbf7d0",
-                          marginBottom: aiCarbon.options?.some(o => o.fun_fact) ? "1.5rem" : 0,
+                        <span style={{ fontSize: "1.25rem", lineHeight: 1, flexShrink: 0, marginTop: "0.1rem" }}>💬</span>
+                        <p style={{
+                          fontSize: "0.9rem", color: "#1a3a2a", fontStyle: "italic",
+                          lineHeight: 1.65, fontFamily: "'Playfair Display',serif", margin: 0,
+                          borderLeft: "3px solid #2d7a4f", paddingLeft: "0.875rem",
                         }}>
-                          <Leaf style={{ width: "1.1rem", height: "1.1rem", color: "#2d7a4f", flexShrink: 0, marginTop: "0.1rem" }} />
-                          <p style={{ fontSize: "0.9rem", color: "#166534", fontFamily: "'Inter',sans-serif", lineHeight: 1.65, margin: 0 }}>
-                            {insights.comparison_sentence}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Per-mode insights grid */}
-                      {aiCarbon.options?.some(o => o.fun_fact) && (
-                        <div>
-                          <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", letterSpacing: "0.1em", margin: "0 0 0.875rem", fontFamily: "'Inter',sans-serif" }}>
-                            PER-MODE AI INSIGHTS
-                          </p>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "0.875rem" }}>
-                            {aiCarbon.options.filter(o => o.fun_fact).map((o) => {
-                              const modeIcon  = { train: "🚄", bus: "🚌", car: "🚗", carpool: "🚗", flight: "✈️" }[o.id] ?? "🚆";
-                              const modeColor = { train: "#2d7a4f", bus: "#b45309", car: "#16a34a", carpool: "#16a34a", flight: "#dc2626" }[o.id] ?? "#6b7280";
-                              const modeBg    = { train: "#f0fdf4", bus: "#fffbeb", car: "#f0fdf4", carpool: "#f0fdf4",  flight: "#fef2f2" }[o.id] ?? "#f8faf8";
-                              const modeBorder= { train: "#bbf7d0", bus: "#fde68a", car: "#bbf7d0", carpool: "#bbf7d0",  flight: "#fecaca" }[o.id] ?? "#e5e7eb";
-                              return (
-                                <div key={o.id} style={{
-                                  display: "flex", alignItems: "flex-start", gap: "0.75rem",
-                                  padding: "1rem 1.125rem", background: modeBg,
-                                  borderRadius: "1rem", border: `1px solid ${modeBorder}`,
-                                }}>
-                                  <span style={{ fontSize: "1.5rem", flexShrink: 0, lineHeight: 1 }}>{modeIcon}</span>
-                                  <div>
-                                    <p style={{ fontSize: "0.7rem", fontWeight: 700, color: modeColor, margin: "0 0 0.3rem", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'Inter',sans-serif" }}>
-                                      {o.type ?? o.id}
-                                    </p>
-                                    <p style={{ fontSize: "0.85rem", color: "#374151", lineHeight: 1.55, fontFamily: "'Inter',sans-serif", margin: 0 }}>
-                                      {o.fun_fact}
-                                    </p>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                          "{aiCarbon.route_summary || insights?.headline}"
+                        </p>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Eco tip banner */}
+                  {/* ─── 2. IMPACT METRICS ─── */}
+                  {(treesSaved > 0 || co2SavedKg > 0 || carKmEquiv > 0) && (
+                    <div>
+                      <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#9ca3af", letterSpacing: "0.12em", margin: "0 0 0.75rem", fontFamily: "'Inter',sans-serif" }}>
+                        AI-CALCULATED IMPACT · BEST VS WORST MODE
+                      </p>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "0.875rem" }}>
+                        {[
+                          { emoji: "🌳", value: treesSaved, unit: "trees planted",   sub: "CO₂ equivalent saved", color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
+                          { emoji: "🌿", value: co2SavedKg, unit: "kg CO₂ avoided", sub: `choosing ${insights?.best_mode || "eco mode"}`, color: "#15803d", bg: "#f0fdf4", border: "#bbf7d0" },
+                          { emoji: "🚗", value: carKmEquiv, unit: "km not driven",   sub: "car journey equivalent", color: "#166534", bg: "#f0fdf4", border: "#bbf7d0" },
+                        ].map((s, i) => (
+                          <div key={i} style={{
+                            background: s.bg, borderRadius: "1.25rem",
+                            padding: "1.25rem 1rem", border: `1px solid ${s.border}`,
+                            textAlign: "center", boxShadow: "0 2px 8px rgba(45,122,79,0.08)",
+                          }}>
+                            <div style={{ fontSize: "1.75rem", lineHeight: 1, marginBottom: "0.4rem" }}>{s.emoji}</div>
+                            <p style={{ fontSize: "2rem", fontWeight: 900, color: s.color, lineHeight: 1, fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                              {s.value}
+                            </p>
+                            <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "#374151", margin: "0.3rem 0 0.15rem", fontFamily: "'Inter',sans-serif" }}>
+                              {s.unit}
+                            </p>
+                            <p style={{ fontSize: "0.65rem", color: "#6b7280", fontFamily: "'Inter',sans-serif", margin: 0, lineHeight: 1.4 }}>
+                              {s.sub}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ─── 3. CO₂ COMPARISON BAR CHART ─── */}
+                  {options.length > 0 && (
+                    <div style={{
+                      background: "#fff", borderRadius: "1.25rem",
+                      border: "1px solid #e5e7eb", padding: "1.5rem",
+                      boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem" }}>
+                        <Sparkles style={{ width: "0.9rem", height: "0.9rem", color: "#2d7a4f" }} />
+                        <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", letterSpacing: "0.12em", margin: 0, fontFamily: "'Inter',sans-serif" }}>
+                          AI-GENERATED CO₂ COMPARISON · KG PER PERSON
+                        </p>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+                        {options.sort((a,b) => (a.co2_per_person ?? 0) - (b.co2_per_person ?? 0)).map((o) => {
+                          const pct    = Math.max(4, Math.round(((o.co2_per_person ?? 0) / maxCo2) * 100));
+                          const isBest = o.id === insights?.best_mode;
+                          const color  = barColor(o.id);
+                          return (
+                            <div key={o.id}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.35rem" }}>
+                                <span style={{ fontSize: "1.1rem", flexShrink: 0, width: "1.4rem", textAlign: "center" }}>
+                                  {modeIcon[o.id] ?? "🚆"}
+                                </span>
+                                <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#1f2937", fontFamily: "'Inter',sans-serif", flex: 1 }}>
+                                  {o.operator ? `${o.operator} · ` : ""}{o.type ?? o.id}
+                                </span>
+                                {isBest && (
+                                  <span style={{
+                                    fontSize: "0.6rem", fontWeight: 700, color: "#fff",
+                                    background: "#16a34a", padding: "0.15rem 0.5rem",
+                                    borderRadius: "9999px", fontFamily: "'Inter',sans-serif",
+                                    letterSpacing: "0.04em",
+                                  }}>
+                                    ✓ AI BEST PICK
+                                  </span>
+                                )}
+                                <span style={{ fontSize: "0.8rem", fontWeight: 700, color, fontFamily: "'Inter',sans-serif", minWidth: "4.5rem", textAlign: "right" }}>
+                                  {o.co2_per_person ?? "–"} kg CO₂
+                                </span>
+                              </div>
+                              <div style={{ height: "0.5rem", background: "#f3f4f6", borderRadius: "9999px", overflow: "hidden" }}>
+                                <div style={{
+                                  height: "100%", width: `${pct}%`,
+                                  background: `linear-gradient(90deg, ${color}99, ${color})`,
+                                  borderRadius: "9999px",
+                                  transition: "width 1s ease",
+                                }} />
+                              </div>
+                              {o.eco_label && (
+                                <p style={{ fontSize: "0.63rem", color: "#9ca3af", fontFamily: "'Inter',sans-serif", margin: "0.2rem 0 0", paddingLeft: "2rem" }}>
+                                  {o.eco_label}{o.duration_display ? ` · ${o.duration_display}` : ""}{o.price_per_person_gbp ? ` · ~£${o.price_per_person_gbp}/person` : ""}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ─── 4. AI COMPARISON INSIGHT ─── */}
+                  {insights?.comparison_sentence && (
+                    <div style={{
+                      background: "linear-gradient(135deg,#f0fdf4,#dcfce7)",
+                      borderRadius: "1.25rem", border: "1px solid #bbf7d0",
+                      padding: "1.25rem 1.5rem",
+                      display: "flex", alignItems: "flex-start", gap: "0.875rem",
+                      boxShadow: "0 2px 8px rgba(45,122,79,0.08)",
+                    }}>
+                      <div style={{
+                        width: "2rem", height: "2rem", borderRadius: "50%",
+                        background: "#2d7a4f", display: "flex", alignItems: "center",
+                        justifyContent: "center", flexShrink: 0,
+                      }}>
+                        <Leaf style={{ width: "0.875rem", height: "0.875rem", color: "#fff" }} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: "0.62rem", fontWeight: 700, color: "#2d7a4f", letterSpacing: "0.1em", margin: "0 0 0.35rem", fontFamily: "'Inter',sans-serif" }}>
+                          AI CARBON INSIGHT
+                        </p>
+                        <p style={{ fontSize: "0.9rem", color: "#166534", lineHeight: 1.7, fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                          {insights.comparison_sentence}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ─── 5. PER-MODE AI FUN FACTS ─── */}
+                  {options.some(o => o.fun_fact) && (
+                    <div style={{
+                      background: "#fff", borderRadius: "1.25rem",
+                      border: "1px solid #e5e7eb", padding: "1.5rem",
+                      boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                        <Sparkles style={{ width: "0.9rem", height: "0.9rem", color: "#2d7a4f" }} />
+                        <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#6b7280", letterSpacing: "0.12em", margin: 0, fontFamily: "'Inter',sans-serif" }}>
+                          PER-MODE AI INSIGHTS
+                        </p>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "0.875rem" }}>
+                        {options.filter(o => o.fun_fact).map((o) => {
+                          const color  = modeColor[o.id]  ?? "#6b7280";
+                          const bg     = modeBg[o.id]     ?? "#f8faf8";
+                          const border = modeBorder[o.id] ?? "#e5e7eb";
+                          const score  = o.eco_score ?? 0;
+                          const scorePct = `${score}%`;
+                          const scoreColor = score >= 75 ? "#16a34a" : score >= 45 ? "#d97706" : "#dc2626";
+                          return (
+                            <div key={o.id} style={{
+                              background: bg, borderRadius: "1rem",
+                              border: `1px solid ${border}`, padding: "1rem",
+                              display: "flex", flexDirection: "column", gap: "0.625rem",
+                            }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                <span style={{ fontSize: "1.25rem", lineHeight: 1 }}>{modeIcon[o.id] ?? "🚆"}</span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <p style={{ fontSize: "0.7rem", fontWeight: 700, color, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "'Inter',sans-serif" }}>
+                                    {o.type ?? o.id}
+                                  </p>
+                                  {o.operator && (
+                                    <p style={{ fontSize: "0.65rem", color: "#9ca3af", margin: 0, fontFamily: "'Inter',sans-serif" }}>{o.operator}</p>
+                                  )}
+                                </div>
+                                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                  <p style={{ fontSize: "1.1rem", fontWeight: 900, color: scoreColor, lineHeight: 1, margin: 0, fontFamily: "'Inter',sans-serif" }}>
+                                    {score}
+                                  </p>
+                                  <p style={{ fontSize: "0.55rem", color: "#9ca3af", margin: 0, fontFamily: "'Inter',sans-serif" }}>ECO SCORE</p>
+                                </div>
+                              </div>
+                              {/* Eco score bar */}
+                              <div style={{ height: "0.3rem", background: "#e5e7eb", borderRadius: "9999px", overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: scorePct, background: scoreColor, borderRadius: "9999px" }} />
+                              </div>
+                              {/* AI fun fact */}
+                              <p style={{ fontSize: "0.82rem", color: "#374151", lineHeight: 1.55, fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                                {o.fun_fact}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ─── 6. AI ECO RECOMMENDATION ─── */}
                   {aiCarbon.eco_tip && (
                     <div style={{
-                      display: "flex", alignItems: "flex-start", gap: "0.875rem",
-                      padding: "1.125rem 1.5rem", borderRadius: "1.25rem",
-                      background: "#fff", boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-                      border: "1px solid #e5e7eb",
+                      borderRadius: "1.25rem", overflow: "hidden",
+                      border: "1px solid #bbf7d0",
+                      boxShadow: "0 4px 20px rgba(45,122,79,0.12)",
                     }}>
-                      <Leaf style={{ width: "1.25rem", height: "1.25rem", color: "#2d7a4f", flexShrink: 0, marginTop: "0.1rem" }} />
-                      <div>
-                        <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ca3af", letterSpacing: "0.08em", margin: "0 0 0.375rem", fontFamily: "'Inter',sans-serif" }}>
-                          GEMINI ECO TIP
+                      <div style={{
+                        background: "linear-gradient(90deg,#1a3a2a,#2d7a4f)",
+                        padding: "0.625rem 1.25rem",
+                        display: "flex", alignItems: "center", gap: "0.5rem",
+                      }}>
+                        <Sparkles style={{ width: "0.75rem", height: "0.75rem", color: "#86efac" }} />
+                        <p style={{ fontSize: "0.62rem", fontWeight: 700, color: "#86efac", letterSpacing: "0.12em", margin: 0, fontFamily: "'Inter',sans-serif" }}>
+                          AI ECO RECOMMENDATION
                         </p>
-                        <p style={{ fontSize: "0.9rem", color: "#166534", lineHeight: 1.65, fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                      </div>
+                      <div style={{ background: "#f8fdf9", padding: "1.125rem 1.5rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                        <span style={{ fontSize: "1.25rem", lineHeight: 1, flexShrink: 0 }}>🌱</span>
+                        <p style={{ fontSize: "0.9rem", color: "#166534", lineHeight: 1.7, fontFamily: "'Inter',sans-serif", margin: 0 }}>
                           {aiCarbon.eco_tip}
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {/* Savings headline banner */}
+                  {/* ─── 7. SAVINGS HEADLINE ─── */}
                   {aiCarbon.savings_headline && (
                     <div style={{
-                      padding: "1.25rem 1.75rem", borderRadius: "1.25rem",
+                      padding: "1.5rem 2rem", borderRadius: "1.25rem",
                       background: "linear-gradient(135deg,#1a3a2a,#2d7a4f)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      boxShadow: "0 4px 20px rgba(45,122,79,0.25)",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem",
+                      boxShadow: "0 6px 24px rgba(45,122,79,0.3)",
                     }}>
-                      <p style={{ fontSize: "1.05rem", fontWeight: 700, color: "#fff", textAlign: "center", fontFamily: "'Playfair Display',serif", margin: 0 }}>
-                        🌱 {aiCarbon.savings_headline}
+                      <span style={{ fontSize: "1.5rem" }}>🌍</span>
+                      <p style={{ fontSize: "1.05rem", fontWeight: 700, color: "#fff", textAlign: "center", fontFamily: "'Playfair Display',serif", margin: 0, lineHeight: 1.45 }}>
+                        {aiCarbon.savings_headline}
                       </p>
                     </div>
                   )}
-                </>
+                </div>
               );
             })()}
 
