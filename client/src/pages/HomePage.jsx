@@ -596,7 +596,7 @@ export function HomePage() {
               Smart Travel, Lighter Footprint
             </h2>
             <p style={{ maxWidth: "36rem", margin: "0 auto", color: "#6b7280", lineHeight: 1.75, textAlign: "center" }}>
-              Waypoint combines real-time pricing with carbon data to help you make informed,
+              WayPoint combines real-time pricing with carbon data to help you make informed,
               sustainable choices — without sacrificing the adventure.
             </p>
           </div>
@@ -794,7 +794,7 @@ export function HomePage() {
               Ready to Travel Sustainably?
             </h2>
             <p style={{ textAlign: "center", fontSize: "0.95rem", lineHeight: 1.75, opacity: 0.85, maxWidth: "32rem", margin: "0 auto 2rem" }}>
-              Join 2.4 million travellers who choose Waypoint to plan unforgettable journeys
+              Join 2.4 million travellers who choose WayPoint to plan unforgettable journeys
               with a conscience. Your next adventure starts here.
             </p>
             <button
@@ -839,7 +839,7 @@ export function HomePage() {
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
             <img
               src={logoImg}
-              alt="Waypoint"
+              alt="WayPoint"
               style={{
                 width: "2rem",
                 height: "2rem",
@@ -849,11 +849,11 @@ export function HomePage() {
               }}
             />
             <span style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.1rem", color: "#fff", fontWeight: 700 }}>
-              Waypoint
+              WayPoint
             </span>
           </div>
           <p style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.55)", textAlign: "center" }}>
-            © 2026 Waypoint. Helping travellers explore with care. 🌿
+            © 2026 WayPoint. Helping travellers explore with care. 🌿
           </p>
           <div style={{ display: "flex", gap: "1.5rem" }}>
             {["Privacy", "Terms", "Contact"].map((l) => (

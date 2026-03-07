@@ -78,7 +78,7 @@ const FAQ = [
   },
   {
     q: "Can I really make a difference by travelling sustainably?",
-    a: "Absolutely. Tourism accounts for ~8% of global emissions. If all travellers chose lower-carbon transport and eco-friendly accommodation, global travel emissions could fall by up to 60%. Every choice matters — and Waypoint helps you make better ones.",
+    a: "Absolutely. Tourism accounts for ~8% of global emissions. If all travellers chose lower-carbon transport and eco-friendly accommodation, global travel emissions could fall by up to 60%. Every choice matters — and WayPoint helps you make better ones.",
   },
   {
     q: "What is a carbon budget for a trip?",
@@ -131,7 +131,7 @@ const STATS = [
   { value: "8%",   label: "of global CO₂ comes from tourism",                    icon: "🌍" },
   { value: "90%",  label: "of travellers want sustainable options",               icon: "♻️" },
   { value: "60%",  label: "emissions saved by choosing train over flight",        icon: "🚄" },
-  { value: "186K", label: "tonnes CO₂ saved by Waypoint users",                   icon: "🌿" },
+  { value: "186K", label: "tonnes CO₂ saved by WayPoint users",                   icon: "🌿" },
 ];
 
 /* ─────────────────────────────────────────
@@ -212,27 +212,33 @@ export function SustainabilityPage() {
   const [carbonError,    setCarbonError]    = useState("");
   const [carbonFetched,  setCarbonFetched]  = useState(false);
 
-  /* Fetch carbon analysis the first time the user opens the AI tab */
+  /* Shared fetch function — callable on first open AND on retry */
+  const fetchCarbonAnalysis = () => {
+    setCarbonFetched(true);
+    setCarbonLoading(true);
+    setCarbonError("");
+    setAiCarbon(null);
+    const from       = trip.from       || "London";
+    const to         = trip.to         || "Paris";
+    const distanceKm = trip.distanceKm || 341;
+    const travelers  = trip.travelers  || 2;
+    analyzeRoute({ from, to, distanceKm, travelers })
+      .then((res) => setAiCarbon(res))
+      .catch((err) => {
+        if (err.message === "OPENROUTER_KEY_MISSING") {
+          setCarbonError("key_missing");
+        } else {
+          console.error("[Gemini] analyzeRoute failed:", err.message);
+          setCarbonError(err.message ?? "failed");
+        }
+      })
+      .finally(() => setCarbonLoading(false));
+  };
+
   const handleTabChange = (id) => {
     setActiveTab(id);
     if (id === "ai" && !carbonFetched) {
-      setCarbonFetched(true);
-      setCarbonLoading(true);
-      setCarbonError("");
-      const from       = trip.from       || "London";
-      const to         = trip.to         || "Paris";
-      const distanceKm = trip.distanceKm || 341;
-      const travelers  = trip.travelers  || 2;
-      analyzeRoute({ from, to, distanceKm, travelers })
-        .then((res) => setAiCarbon(res))
-        .catch((err) => {
-          if (err.message === "OPENROUTER_KEY_MISSING") {
-            setCarbonError("key_missing");
-          } else {
-            setCarbonError("failed");
-          }
-        })
-        .finally(() => setCarbonLoading(false));
+      fetchCarbonAnalysis();
     }
   };
 
@@ -284,7 +290,7 @@ export function SustainabilityPage() {
           }}>
             <Globe style={{ width: "1rem", height: "1rem", color: "#86efac" }} />
             <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#bbf7d0", fontFamily: "'Inter',sans-serif" }}>
-              Sustainability at Waypoint
+              Sustainability at WayPoint
             </span>
           </div>
 
@@ -607,7 +613,7 @@ export function SustainabilityPage() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <h3 style={{ fontWeight: 700, color: "#1a2e1a", fontSize: "1.05rem", marginBottom: "0.375rem", fontFamily: "'Inter',sans-serif" }}>
-                    Take the Waypoint Traveller Pledge
+                    Take the WayPoint Traveller Pledge
                   </h3>
                   <p style={{ fontSize: "0.875rem", color: "#4b5563", marginBottom: "1.25rem", fontFamily: "'Inter',sans-serif" }}>
                     Join 180,000+ travellers who've pledged to travel more sustainably this year.
@@ -732,11 +738,52 @@ export function SustainabilityPage() {
                 </p>
               </div>
             )}
-            {carbonError === "failed" && !carbonLoading && (
-              <div style={{ padding: "1.25rem 1.5rem", borderRadius: "1rem", background: "#fef2f2", border: "1px solid #fecaca" }}>
-                <p style={{ fontSize: "0.875rem", color: "#991b1b", fontFamily: "'Inter',sans-serif" }}>
-                  ⚠️ Could not reach Gemini AI. Please try again later.
-                </p>
+            {carbonError && carbonError !== "key_missing" && !carbonLoading && (
+              <div style={{
+                padding: "1.5rem",
+                borderRadius: "1.25rem",
+                background: "#fef2f2",
+                border: "1px solid #fecaca",
+                display: "flex",
+                flexDirection: "column",
+                gap: "1rem",
+              }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
+                  <span style={{ fontSize: "1.25rem", flexShrink: 0 }}>⚠️</span>
+                  <div>
+                    <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#991b1b", fontFamily: "'Inter',sans-serif", margin: "0 0 0.375rem" }}>
+                      Could not reach Gemini AI
+                    </p>
+                    <p style={{ fontSize: "0.78rem", color: "#b91c1c", fontFamily: "'Inter',sans-serif", margin: 0, lineHeight: 1.5 }}>
+                      {carbonError.startsWith("OpenRouter")
+                        ? `API error: ${carbonError}`
+                        : carbonError.startsWith("AI_PARSE_ERROR")
+                        ? "Gemini returned an unexpected format. Retrying usually fixes this."
+                        : "Network or API issue. Check your internet connection and try again."}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={fetchCarbonAnalysis}
+                  style={{
+                    alignSelf: "flex-start",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    padding: "0.625rem 1.25rem",
+                    borderRadius: "0.75rem",
+                    border: "none",
+                    background: "#2d7a4f",
+                    color: "#fff",
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "'Inter',sans-serif",
+                  }}
+                >
+                  <Sparkles style={{ width: "0.875rem", height: "0.875rem" }} />
+                  Retry with Gemini
+                </button>
               </div>
             )}
 
@@ -988,7 +1035,7 @@ export function SustainabilityPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
             <img
               src={logoImg}
-              alt="Waypoint"
+              alt="WayPoint"
               style={{
                 width: "2rem",
                 height: "2rem",
@@ -998,11 +1045,11 @@ export function SustainabilityPage() {
               }}
             />
             <span style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.1rem", color: "#fff", fontWeight: 700 }}>
-              Waypoint
+              WayPoint
             </span>
           </div>
           <p style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.5)", textAlign: "center", fontFamily: "'Inter',sans-serif" }}>
-            © 2026 Waypoint. Committed to sustainable travel data & transparency. 🌿
+            © 2026 WayPoint. Committed to sustainable travel data & transparency. 🌿
           </p>
           <div style={{ display: "flex", gap: "1.5rem" }}>
             {["Privacy", "Terms", "Contact"].map((l) => (

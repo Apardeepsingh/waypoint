@@ -106,7 +106,7 @@ export function Navbar() {
               lineHeight: 1,
             }}
           >
-            Waypoint
+            WayPoint
           </span>
 
           {/* Eco pill */}

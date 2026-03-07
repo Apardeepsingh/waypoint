@@ -279,7 +279,7 @@ export function AuthPage() {
             <span style={{
               fontFamily: "'Playfair Display',serif",
               fontSize: "1.5rem", fontWeight: 700, color: "#fff",
-            }}>Waypoint</span>
+            }}>WayPoint</span>
             <span style={{
               padding: "0.2rem 0.625rem", borderRadius: "9999px",
               background: "rgba(255,255,255,0.18)", backdropFilter: "blur(6px)",
@@ -339,7 +339,7 @@ export function AuthPage() {
 
         {/* Bottom tagline */}
         <p style={{ position: "relative", zIndex: 1, fontSize: "0.72rem", color: "rgba(255,255,255,0.45)", fontFamily: "'Inter',sans-serif" }}>
-          © 2026 Waypoint · Eco-Certified Travel Platform
+          © 2026 WayPoint · Eco-Certified Travel Platform
         </p>
       </div>
 

@@ -8,6 +8,29 @@
 const BASE  = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash-lite";
 
+/* ── Robust JSON extractor ──
+   Handles: plain JSON, markdown fences, JSON embedded inside prose */
+function extractJson(raw) {
+  const text = (raw ?? "").trim();
+
+  // 1. Direct parse
+  try { return JSON.parse(text); } catch { /* fall through */ }
+
+  // 2. Strip ```json ... ``` or ``` ... ``` fences
+  const fenced = text.match(/```(?:json)?\s*([\s\S]+?)\s*```/i);
+  if (fenced) {
+    try { return JSON.parse(fenced[1].trim()); } catch { /* fall through */ }
+  }
+
+  // 3. Extract the first { ... } block (handles prose before/after JSON)
+  const objMatch = text.match(/\{[\s\S]+\}/);
+  if (objMatch) {
+    try { return JSON.parse(objMatch[0]); } catch { /* fall through */ }
+  }
+
+  throw new Error(`AI_PARSE_ERROR: Could not extract JSON from response: ${text.slice(0, 200)}`);
+}
+
 /* ── Core fetch wrapper ── */
 async function ask(userPrompt, systemPrompt = "You are an eco travel AI assistant. Always respond with valid JSON only. No markdown, no explanation — just the JSON object.") {
   const key = import.meta.env.VITE_OPENROUTER_API_KEY;
@@ -21,7 +44,7 @@ async function ask(userPrompt, systemPrompt = "You are an eco travel AI assistan
       "Authorization":       `Bearer ${key}`,
       "Content-Type":        "application/json",
       "HTTP-Referer":        typeof window !== "undefined" ? window.location.origin : "https://waypoint.eco",
-      "X-OpenRouter-Title":  "Waypoint Eco Travel",
+      "X-OpenRouter-Title":  "WayPoint Eco Travel",
     },
     body: JSON.stringify({
       model:    MODEL,
@@ -35,20 +58,13 @@ async function ask(userPrompt, systemPrompt = "You are an eco travel AI assistan
 
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
-    throw new Error(`OpenRouter ${res.status}: ${txt}`);
+    throw new Error(`OpenRouter ${res.status}: ${txt.slice(0, 300)}`);
   }
 
   const data    = await res.json();
   const content = data.choices?.[0]?.message?.content ?? "{}";
 
-  /* Strip markdown code fences if present */
-  const cleaned = content
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-
-  return JSON.parse(cleaned);
+  return extractJson(content);
 }
 
 export async function analyzeRoute({ from, to, distanceKm, travelers }) {

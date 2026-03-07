@@ -789,7 +789,7 @@ export function ActivitiesPage() {
         }}>
           <Leaf style={{ width: "1.25rem", height: "1.25rem", color: "#2d7a4f", flexShrink: 0 }} />
           <p style={{ fontSize: "0.875rem", color: "#166534", fontFamily: "'Inter',sans-serif", lineHeight: 1.6 }}>
-            <strong>All activities on Waypoint</strong> are vetted for sustainability. Look for the
+            <strong>All activities on WayPoint</strong> are vetted for sustainability. Look for the
             eco-certified badge for activities with the lowest environmental impact.
           </p>
         </div>
