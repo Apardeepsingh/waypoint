@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useTrip } from "../context/TripContext";
 import logoImg from "../assets/Untitled_Artwork.png";
-import { getEcoTips } from "../services/openRouter";
+import { getEcoTips, analyzeRoute } from "../services/openRouter";
 
 /* ─────────────────────────────────────────
    CONSTANTS
@@ -121,9 +121,10 @@ const GLOBAL_STATS = [
 ];
 
 const TABS = [
-  { id: "how",  label: "📊 How We Calculate" },
-  { id: "tips", label: "💡 Eco Travel Tips" },
-  { id: "data", label: "🌍 Global Data" },
+  { id: "how",    label: "📊 How We Calculate" },
+  { id: "tips",   label: "💡 Eco Travel Tips" },
+  { id: "data",   label: "🌍 Global Data" },
+  { id: "ai",     label: "✦ AI Carbon Analysis" },
 ];
 
 const STATS = [
@@ -204,6 +205,36 @@ export function SustainabilityPage() {
   /* AI-powered eco tips */
   const [aiTips,     setAiTips]     = useState(null);
   const [tipsLoading,setTipsLoading]= useState(false);
+
+  /* AI Carbon Analysis tab */
+  const [aiCarbon,       setAiCarbon]       = useState(null);
+  const [carbonLoading,  setCarbonLoading]  = useState(false);
+  const [carbonError,    setCarbonError]    = useState("");
+  const [carbonFetched,  setCarbonFetched]  = useState(false);
+
+  /* Fetch carbon analysis the first time the user opens the AI tab */
+  const handleTabChange = (id) => {
+    setActiveTab(id);
+    if (id === "ai" && !carbonFetched) {
+      setCarbonFetched(true);
+      setCarbonLoading(true);
+      setCarbonError("");
+      const from       = trip.from       || "London";
+      const to         = trip.to         || "Paris";
+      const distanceKm = trip.distanceKm || 341;
+      const travelers  = trip.travelers  || 2;
+      analyzeRoute({ from, to, distanceKm, travelers })
+        .then((res) => setAiCarbon(res))
+        .catch((err) => {
+          if (err.message === "OPENROUTER_KEY_MISSING") {
+            setCarbonError("key_missing");
+          } else {
+            setCarbonError("failed");
+          }
+        })
+        .finally(() => setCarbonLoading(false));
+    }
+  };
 
   useEffect(() => {
     if (aiTips) return;
@@ -336,7 +367,7 @@ export function SustainabilityPage() {
             return (
               <button
                 key={id}
-                onClick={() => setActiveTab(id)}
+                onClick={() => handleTabChange(id)}
                 style={{
                   padding: "0.625rem 1.25rem",
                   borderRadius: "0.75rem",
@@ -658,6 +689,236 @@ export function SustainabilityPage() {
                 the best available peer-reviewed science.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* ── AI CARBON ANALYSIS ── */}
+        {activeTab === "ai" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+
+            {/* Loading state */}
+            {carbonLoading && (
+              <div style={{
+                display: "flex", flexDirection: "column", alignItems: "center",
+                justifyContent: "center", gap: "1.25rem",
+                padding: "4rem 2rem", borderRadius: "1.25rem",
+                background: "#fff", boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+              }}>
+                <div style={{
+                  width: "3.5rem", height: "3.5rem", borderRadius: "50%",
+                  background: "linear-gradient(135deg,#1a3a2a,#2d7a4f)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  animation: "geminiPulse 1.8s ease-in-out infinite",
+                }}>
+                  <Sparkles style={{ width: "1.4rem", height: "1.4rem", color: "#86efac" }} />
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: "1rem", fontWeight: 700, color: "#1a2e1a", marginBottom: "0.375rem", fontFamily: "'Inter',sans-serif" }}>
+                    Gemini is analysing your route…
+                  </p>
+                  <p style={{ fontSize: "0.85rem", color: "#6b7280", fontFamily: "'Inter',sans-serif" }}>
+                    {trip.from || "London"} → {trip.to || "Paris"} · calculating trees saved, CO₂ avoided & per-mode insights
+                  </p>
+                </div>
+                <style>{`@keyframes geminiPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.12);opacity:0.8}}`}</style>
+              </div>
+            )}
+
+            {/* Error states */}
+            {carbonError === "key_missing" && !carbonLoading && (
+              <div style={{ padding: "1.25rem 1.5rem", borderRadius: "1rem", background: "#fff7ed", border: "1px solid #fed7aa" }}>
+                <p style={{ fontSize: "0.875rem", color: "#92400e", fontFamily: "'Inter',sans-serif" }}>
+                  ⚠️ Add your <code>VITE_OPENROUTER_API_KEY</code> to <code>.env</code> to enable AI-powered carbon analysis.
+                </p>
+              </div>
+            )}
+            {carbonError === "failed" && !carbonLoading && (
+              <div style={{ padding: "1.25rem 1.5rem", borderRadius: "1rem", background: "#fef2f2", border: "1px solid #fecaca" }}>
+                <p style={{ fontSize: "0.875rem", color: "#991b1b", fontFamily: "'Inter',sans-serif" }}>
+                  ⚠️ Could not reach Gemini AI. Please try again later.
+                </p>
+              </div>
+            )}
+
+            {/* Main panel */}
+            {aiCarbon && !carbonLoading && (() => {
+              const insights = aiCarbon.carbon_insights;
+              const treesSaved = insights?.trees_saved ?? Math.round((insights?.co2_saved_kg ?? 0) / 22);
+              const co2SavedKg = insights?.co2_saved_kg ?? 0;
+              const carKmEquiv = insights?.car_km_equivalent ?? Math.round(co2SavedKg / 0.171);
+              return (
+                <>
+                  {/* Header card */}
+                  <div style={{ borderRadius: "1.25rem", overflow: "hidden", boxShadow: "0 4px 24px rgba(45,122,79,0.18)", border: "1px solid #bbf7d0" }}>
+                    <div style={{
+                      background: "linear-gradient(135deg,#1a3a2a 0%,#2d7a4f 100%)",
+                      padding: "1.25rem 1.75rem",
+                      display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap",
+                    }}>
+                      <Sparkles style={{ width: "1.1rem", height: "1.1rem", color: "#86efac", flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: "0.67rem", color: "rgba(255,255,255,0.55)", letterSpacing: "0.12em", fontWeight: 700, fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                          GEMINI AI · CARBON EFFICIENCY ANALYSIS
+                        </p>
+                        <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#fff", fontFamily: "'Inter',sans-serif", margin: "0.15rem 0 0" }}>
+                          {trip.from || "London"} → {trip.to || "Paris"}
+                          {(trip.travelers ?? 2) > 1 ? ` · ${trip.travelers ?? 2} travellers` : ""}
+                        </p>
+                      </div>
+                      <span style={{
+                        padding: "0.3rem 0.875rem", borderRadius: "9999px",
+                        background: "rgba(255,255,255,0.15)", color: "#bbf7d0",
+                        fontSize: "0.72rem", fontWeight: 700, fontFamily: "'Inter',sans-serif",
+                        border: "1px solid rgba(255,255,255,0.22)", whiteSpace: "nowrap",
+                      }}>
+                        ✦ Powered by Gemini Flash
+                      </span>
+                    </div>
+
+                    <div style={{ background: "#fff", padding: "1.75rem" }}>
+
+                      {/* Headline */}
+                      {insights?.headline && (
+                        <p style={{ fontSize: "1.05rem", fontWeight: 700, color: "#1a2e1a", marginBottom: "1.5rem", fontFamily: "'Inter',sans-serif", lineHeight: 1.5 }}>
+                          💡 {insights.headline}
+                        </p>
+                      )}
+
+                      {/* 3-stat grid */}
+                      {(treesSaved > 0 || co2SavedKg > 0 || carKmEquiv > 0) && (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "1rem", marginBottom: "1.5rem" }}>
+                          {[
+                            { emoji: "🌳", value: treesSaved, unit: "trees",   label: "CO₂ equivalent saved",   sub: "vs flying · per person",   color: "#16a34a" },
+                            { emoji: "🌿", value: co2SavedKg, unit: "kg CO₂", label: "avoided per person",      sub: "by choosing train",         color: "#15803d" },
+                            { emoji: "🚗", value: carKmEquiv, unit: "km",     label: "car journey equivalent",  sub: "not driven this trip",      color: "#166534" },
+                          ].map((s, i) => (
+                            <div key={i} style={{
+                              background: "#f0fdf4", borderRadius: "1.25rem",
+                              padding: "1.5rem", border: "1px solid #bbf7d0", textAlign: "center",
+                              boxShadow: "0 2px 8px rgba(45,122,79,0.08)",
+                            }}>
+                              <div style={{ fontSize: "2.25rem", lineHeight: 1, marginBottom: "0.5rem" }}>{s.emoji}</div>
+                              <p style={{ fontSize: "2.25rem", fontWeight: 800, color: s.color, lineHeight: 1, fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                                {s.value}
+                              </p>
+                              <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#374151", margin: "0.3rem 0 0", fontFamily: "'Inter',sans-serif" }}>
+                                {s.unit}
+                              </p>
+                              <p style={{ fontSize: "0.72rem", color: "#6b7280", margin: "0.2rem 0 0", fontFamily: "'Inter',sans-serif", lineHeight: 1.4 }}>
+                                {s.label}
+                              </p>
+                              <p style={{ fontSize: "0.68rem", color: "#9ca3af", fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                                {s.sub}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Comparison sentence */}
+                      {insights?.comparison_sentence && (
+                        <div style={{
+                          display: "flex", alignItems: "flex-start", gap: "0.75rem",
+                          padding: "1rem 1.25rem", background: "#e8f5ee",
+                          borderRadius: "1rem", border: "1px solid #bbf7d0",
+                          marginBottom: aiCarbon.options?.some(o => o.fun_fact) ? "1.5rem" : 0,
+                        }}>
+                          <Leaf style={{ width: "1.1rem", height: "1.1rem", color: "#2d7a4f", flexShrink: 0, marginTop: "0.1rem" }} />
+                          <p style={{ fontSize: "0.9rem", color: "#166534", fontFamily: "'Inter',sans-serif", lineHeight: 1.65, margin: 0 }}>
+                            {insights.comparison_sentence}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Per-mode insights grid */}
+                      {aiCarbon.options?.some(o => o.fun_fact) && (
+                        <div>
+                          <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", letterSpacing: "0.1em", margin: "0 0 0.875rem", fontFamily: "'Inter',sans-serif" }}>
+                            PER-MODE GEMINI INSIGHTS
+                          </p>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "0.875rem" }}>
+                            {aiCarbon.options.filter(o => o.fun_fact).map((o) => {
+                              const modeIcon  = { train: "🚄", bus: "🚌", car: "🚗", carpool: "🚗", flight: "✈️" }[o.id] ?? "🚆";
+                              const modeColor = { train: "#2d7a4f", bus: "#b45309", car: "#16a34a", carpool: "#16a34a", flight: "#dc2626" }[o.id] ?? "#6b7280";
+                              const modeBg    = { train: "#f0fdf4", bus: "#fffbeb", car: "#f0fdf4", carpool: "#f0fdf4",  flight: "#fef2f2" }[o.id] ?? "#f8faf8";
+                              const modeBorder= { train: "#bbf7d0", bus: "#fde68a", car: "#bbf7d0", carpool: "#bbf7d0",  flight: "#fecaca" }[o.id] ?? "#e5e7eb";
+                              return (
+                                <div key={o.id} style={{
+                                  display: "flex", alignItems: "flex-start", gap: "0.75rem",
+                                  padding: "1rem 1.125rem", background: modeBg,
+                                  borderRadius: "1rem", border: `1px solid ${modeBorder}`,
+                                }}>
+                                  <span style={{ fontSize: "1.5rem", flexShrink: 0, lineHeight: 1 }}>{modeIcon}</span>
+                                  <div>
+                                    <p style={{ fontSize: "0.7rem", fontWeight: 700, color: modeColor, margin: "0 0 0.3rem", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'Inter',sans-serif" }}>
+                                      {o.type ?? o.id}
+                                    </p>
+                                    <p style={{ fontSize: "0.85rem", color: "#374151", lineHeight: 1.55, fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                                      {o.fun_fact}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Eco tip banner */}
+                  {aiCarbon.eco_tip && (
+                    <div style={{
+                      display: "flex", alignItems: "flex-start", gap: "0.875rem",
+                      padding: "1.125rem 1.5rem", borderRadius: "1.25rem",
+                      background: "#fff", boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+                      border: "1px solid #e5e7eb",
+                    }}>
+                      <Leaf style={{ width: "1.25rem", height: "1.25rem", color: "#2d7a4f", flexShrink: 0, marginTop: "0.1rem" }} />
+                      <div>
+                        <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ca3af", letterSpacing: "0.08em", margin: "0 0 0.375rem", fontFamily: "'Inter',sans-serif" }}>
+                          GEMINI ECO TIP
+                        </p>
+                        <p style={{ fontSize: "0.9rem", color: "#166534", lineHeight: 1.65, fontFamily: "'Inter',sans-serif", margin: 0 }}>
+                          {aiCarbon.eco_tip}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Savings headline banner */}
+                  {aiCarbon.savings_headline && (
+                    <div style={{
+                      padding: "1.25rem 1.75rem", borderRadius: "1.25rem",
+                      background: "linear-gradient(135deg,#1a3a2a,#2d7a4f)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 4px 20px rgba(45,122,79,0.25)",
+                    }}>
+                      <p style={{ fontSize: "1.05rem", fontWeight: 700, color: "#fff", textAlign: "center", fontFamily: "'Playfair Display',serif", margin: 0 }}>
+                        🌱 {aiCarbon.savings_headline}
+                      </p>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* No trip set — prompt */}
+            {!carbonLoading && !carbonError && !aiCarbon && (
+              <div style={{
+                textAlign: "center", padding: "3.5rem 2rem",
+                background: "#fff", borderRadius: "1.25rem",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+              }}>
+                <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🌿</div>
+                <p style={{ fontSize: "1rem", fontWeight: 700, color: "#1a2e1a", marginBottom: "0.5rem", fontFamily: "'Inter',sans-serif" }}>
+                  Plan a trip first to see your carbon analysis
+                </p>
+                <p style={{ fontSize: "0.875rem", color: "#6b7280", fontFamily: "'Inter',sans-serif", marginBottom: "1.5rem" }}>
+                  Go to the home page, enter your route, and come back here for a full Gemini-powered breakdown.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
