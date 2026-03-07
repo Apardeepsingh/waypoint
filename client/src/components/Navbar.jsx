@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Leaf, Menu, X, MapPin, LogOut, User } from "lucide-react";
+import { Leaf, Menu, X, LogOut, User } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import logoImg from "../assets/Untitled_Artwork.png";
 
 const NAV_LINKS = [
   { label: "Home",         path: "/" },
@@ -81,21 +82,19 @@ export function Navbar() {
             flexShrink: 0,
           }}
         >
-          {/* Icon badge */}
-          <div
+          {/* Logo image */}
+          <img
+            src={logoImg}
+            alt="Waypoint logo"
             style={{
-              width: "2.25rem",
-              height: "2.25rem",
-              borderRadius: "0.75rem",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "linear-gradient(135deg, #2d7a4f, #4aab74)",
+              width: "2.5rem",
+              height: "2.5rem",
+              borderRadius: "50%",
+              objectFit: "cover",
               flexShrink: 0,
+              boxShadow: "0 2px 8px rgba(45,122,79,0.25)",
             }}
-          >
-            <MapPin style={{ width: "1.1rem", height: "1.1rem", color: "#fff" }} />
-          </div>
+          />
 
           {/* Brand name */}
           <span

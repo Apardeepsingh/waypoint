@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  MapPin, Leaf, Eye, EyeOff, ArrowRight,
+  Leaf, Eye, EyeOff, ArrowRight,
   Mail, Lock, User, CheckCircle2, Globe, AlertCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import logoImg from "../assets/Untitled_Artwork.png";
 
 /* ── tiny field wrapper ── */
 function Field({ label, type = "text", placeholder, icon: Icon, value, onChange, extra }) {
@@ -263,16 +264,18 @@ export function AuthPage() {
             display: "inline-flex", alignItems: "center",
             gap: "0.625rem", textDecoration: "none",
           }}>
-            <div style={{
-              width: "2.5rem", height: "2.5rem",
-              borderRadius: "0.875rem",
-              background: "rgba(255,255,255,0.18)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              backdropFilter: "blur(6px)",
-              border: "1px solid rgba(255,255,255,0.25)",
-            }}>
-              <MapPin style={{ width: "1.25rem", height: "1.25rem", color: "#fff" }} />
-            </div>
+            <img
+              src={logoImg}
+              alt="Waypoint logo"
+              style={{
+                width: "2.75rem",
+                height: "2.75rem",
+                borderRadius: "50%",
+                objectFit: "cover",
+                flexShrink: 0,
+                boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
+              }}
+            />
             <span style={{
               fontFamily: "'Playfair Display',serif",
               fontSize: "1.5rem", fontWeight: 700, color: "#fff",

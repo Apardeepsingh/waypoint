@@ -6,6 +6,7 @@ import {
   Loader2, Sparkles,
 } from "lucide-react";
 import { useTrip } from "../context/TripContext";
+import logoImg from "../assets/Untitled_Artwork.png";
 import { getEcoTips } from "../services/openRouter";
 
 /* ─────────────────────────────────────────
@@ -723,8 +724,18 @@ export function SustainabilityPage() {
           display: "flex", flexWrap: "wrap",
           alignItems: "center", justifyContent: "space-between", gap: "1rem",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Leaf style={{ width: "1.2rem", height: "1.2rem", color: "#4aab74" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+            <img
+              src={logoImg}
+              alt="Waypoint"
+              style={{
+                width: "2rem",
+                height: "2rem",
+                borderRadius: "50%",
+                objectFit: "cover",
+                flexShrink: 0,
+              }}
+            />
             <span style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.1rem", color: "#fff", fontWeight: 700 }}>
               Waypoint
             </span>
