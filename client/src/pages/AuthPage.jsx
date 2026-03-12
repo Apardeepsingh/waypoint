@@ -116,6 +116,27 @@ export function AuthPage() {
   const [suLoading,  setSuLoading]  = useState(false);
   const [suError,    setSuError]    = useState("");
 
+  const authTitleStyle = {
+    fontFamily: "'Playfair Display',serif",
+    fontSize: "clamp(2rem, 3.4vw, 2.35rem)",
+    fontWeight: 700,
+    letterSpacing: "-0.02em",
+    color: "#163722",
+    lineHeight: 1.12,
+    marginBottom: "0.5rem",
+    textRendering: "optimizeLegibility",
+  };
+
+  const authSubtitleStyle = {
+    fontSize: "1.02rem",
+    color: "#4b5563",
+    fontFamily: "'Inter',sans-serif",
+    fontWeight: 450,
+    lineHeight: 1.6,
+    letterSpacing: "0.005em",
+    maxWidth: "30ch",
+  };
+
   const handleSignIn = async (e) => {
     e.preventDefault();
     setSiError("");
@@ -367,10 +388,10 @@ export function AuthPage() {
           {mode === "signin" && (
             <>
               <div style={{ marginBottom: "1.75rem" }}>
-                <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.75rem", fontWeight: 700, color: "#1a2e1a", marginBottom: "0.375rem" }}>
+                <h1 style={authTitleStyle}>
                   Welcome back
                 </h1>
-                <p style={{ fontSize: "0.875rem", color: "#6b7280", fontFamily: "'Inter',sans-serif" }}>
+                <p style={authSubtitleStyle}>
                   Sign in to continue your eco journey
                 </p>
               </div>
@@ -411,10 +432,10 @@ export function AuthPage() {
           {mode === "signup" && (
             <>
               <div style={{ marginBottom: "1.75rem" }}>
-                <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.75rem", fontWeight: 700, color: "#1a2e1a", marginBottom: "0.375rem" }}>
+                <h1 style={authTitleStyle}>
                   Create your account
                 </h1>
-                <p style={{ fontSize: "0.875rem", color: "#6b7280", fontFamily: "'Inter',sans-serif" }}>
+                <p style={authSubtitleStyle}>
                   Start planning sustainable journeys today
                 </p>
               </div>
