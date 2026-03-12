@@ -31,7 +31,16 @@ app.add_middleware(
 GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
-openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+openai_client: Optional[AsyncOpenAI] = None
+
+
+def get_openai_client() -> AsyncOpenAI:
+    global openai_client
+    if not OPENAI_API_KEY:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured")
+    if openai_client is None:
+        openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    return openai_client
 
 
 # ── Request / Response models ──────────────────────────────────────────────────
@@ -280,6 +289,7 @@ Respond with ONLY valid JSON, no markdown, no explanation."""
 
 
 async def call_openai_itinerary(payload: dict) -> dict:
+    client = get_openai_client()
     user_msg = f"""Plan the most sustainable and budget-smart itinerary for:
 
 Budget: {payload['budget']} (total for the whole group, in GBP)
@@ -303,7 +313,7 @@ For each step:
 - Include realistic activity selection from the provided options
 - Always finish with a return journey step"""
 
-    response = await openai_client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": ITINERARY_SYSTEM_PROMPT},
@@ -316,6 +326,7 @@ For each step:
 
 
 async def call_openai_activities(location: str, places: list, people: int, budget_remaining: float) -> dict:
+    client = get_openai_client()
     user_msg = f"""Destination: {location}
 Group size: {people} people
 Remaining budget for activities: £{budget_remaining}
@@ -348,7 +359,7 @@ Return JSON:
   ]
 }}"""
 
-    response = await openai_client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": ACTIVITIES_SYSTEM_PROMPT},
@@ -409,6 +420,8 @@ async def get_activities(body: ActivitiesRequest):
     try:
         if not GOOGLE_MAPS_API_KEY:
             raise HTTPException(status_code=500, detail="GOOGLE_MAPS_API_KEY not configured")
+        if not OPENAI_API_KEY:
+            raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured")
 
         places = await get_activity_options(body.location)
         if not places:
